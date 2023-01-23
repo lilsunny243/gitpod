@@ -7,7 +7,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 
@@ -36,7 +35,10 @@ var openCmd = &cobra.Command{
 
 		pcmd := os.Getenv("GP_OPEN_EDITOR")
 		if pcmd == "" {
-			log.Fatal("GP_OPEN_EDITOR is not set")
+			gpErr := &GpError{
+				Err: fmt.Errorf("GP_OPEN_EDITOR is not set"),
+			}
+			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
 			return
 		}
 		pargs, err := shlex.Split(pcmd)

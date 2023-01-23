@@ -7,6 +7,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -111,20 +112,16 @@ var rootCmd = &cobra.Command{
 		}
 
 		sendAnalytics := exec.Command(
-			"./gitpod-cli",
-			// rootCmdName,
+			rootCmdName,
 			"send-analytics",
 			"--data",
 			event.ExportToJson(ctx),
 		)
-		sendAnalytics.Stdout = os.Stdout
-		sendAnalytics.Stderr = os.Stderr
-		// sendAnalytics.Stdout = ioutil.Discard
-		// sendAnalytics.Stderr = ioutil.Discard
+		sendAnalytics.Stdout = ioutil.Discard
+		sendAnalytics.Stderr = ioutil.Discard
 
 		// fire and forget
-		_ = sendAnalytics.Run()
-		// _ = sendAnalytics.Start()
+		_ = sendAnalytics.Start()
 
 		if cmdErr != nil {
 			gpErr := cmdErr.(GpError)
