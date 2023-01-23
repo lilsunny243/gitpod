@@ -187,6 +187,11 @@ func setEnvs(ctx context.Context, args []string) *GpError {
 	return nil
 }
 
+func fail(msg string) {
+	fmt.Fprintln(os.Stderr, msg)
+	os.Exit(-1)
+}
+
 func deleteEnvs(ctx context.Context, args []string) *GpError {
 	result, err := connectToServer(ctx)
 	if err != nil {
