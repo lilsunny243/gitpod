@@ -1480,6 +1480,14 @@ data:
     certificate:
       kind: secret
       name: https-certificates
+    components:
+      ide:
+        metrics:
+          errorReportingEnabled: true
+        proxy:
+          serviceAnnotations:
+            ideProxyAnnotation: some-value
+        resolveLatest: true
     containerRegistry:
       inCluster: true
       privateBaseImageAllowList: []
@@ -1499,6 +1507,10 @@ data:
     observability:
       logLevel: info
     openVSX:
+      proxy:
+        disablePVC: false
+        serviceAnnotations:
+          openvsxProxyAnnotation: some-other-value
       url: https://open-vsx.org
     repository: eu.gcr.io/gitpod-core-dev/build
     workspace:
