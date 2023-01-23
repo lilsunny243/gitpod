@@ -20,8 +20,10 @@ var docsCmd = &cobra.Command{
 		ctx := cmd.Context()
 		err := openPreview("GP_EXTERNAL_BROWSER", DocsUrl)
 		if err != nil {
-			errorCtx := context.WithValue(ctx, ctxKeyError, err)
-			cmd.SetContext(errorCtx)
+			gpErr := &GpError{
+				Err: err,
+			}
+			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
 		}
 	},
 }

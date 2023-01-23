@@ -76,8 +76,10 @@ var topCmd = &cobra.Command{
 			break
 		case err := <-errCh:
 			close(errCh)
-			errorCtx := context.WithValue(ctx, ctxKeyError, err)
-			cmd.SetContext(errorCtx)
+			gpErr := &GpError{
+				Err: err,
+			}
+			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
 			return
 		}
 

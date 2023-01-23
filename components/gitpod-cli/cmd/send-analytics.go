@@ -6,8 +6,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"errors"
-	"os"
 
 	"github.com/gitpod-io/gitpod/common-go/log"
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
@@ -30,10 +28,10 @@ var sendAnalyticsCmd = &cobra.Command{
 	Hidden: true,
 	Args:   cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		if os.Getppid() != supervisorPid {
-			err := errors.New("send-analytics should not be executed directly")
-			log.Fatal(err)
-		}
+		// if os.Getppid() != supervisorPid {
+		// 	err := errors.New("send-analytics should not be executed directly")
+		// 	log.Fatal(err)
+		// }
 
 		var data utils.TrackCommandUsageParams
 		err := json.Unmarshal([]byte(sendAnalyticsCmdOpts.data), &data)

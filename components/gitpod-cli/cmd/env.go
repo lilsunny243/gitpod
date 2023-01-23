@@ -62,15 +62,19 @@ delete environment variables with a repository pattern of */foo, foo/* or */*.
 		ctx, cancel := context.WithTimeout(cmd.Context(), 1*time.Minute)
 		defer cancel()
 
+		var gpErr *GpError
 		if len(args) > 0 {
 			if unsetEnvs {
-				deleteEnvs(args)
-				return
+				gpErr = deleteEnvs(ctx, args)
+			} else {
+				gpErr = setEnvs(ctx, args)
 			}
-
-			setEnvs(ctx, args)
 		} else {
-			getEnvs(ctx)
+			gpErr = getEnvs(ctx)
+		}
+
+		if gpErr != nil {
+			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
 		}
 	},
 }
@@ -123,33 +127,36 @@ func connectToServer(ctx context.Context) (*connectToServerResult, error) {
 	return &connectToServerResult{repositoryPattern, client}, nil
 }
 
-func getEnvs(ctx context.Context) {
+func getEnvs(ctx context.Context) *GpError {
 	result, err := connectToServer(ctx)
 	if err != nil {
-		fail(err.Error())
+		return &GpError{Err: err}
 	}
 
 	vars, err := result.client.GetEnvVars(ctx)
 	if err != nil {
-		fail("failed to fetch env vars from server: " + err.Error())
+		return &GpError{Err: fmt.Errorf("failed to fetch env vars from server: " + err.Error())}
 	}
 
 	for _, v := range vars {
 		printVar(v, exportEnvs)
 	}
+
+	return nil
 }
 
-func setEnvs(ctx context.Context, args []string) {
+func setEnvs(ctx context.Context, args []string) *GpError {
 	result, err := connectToServer(ctx)
 	if err != nil {
-		fail(err.Error())
+		return &GpError{Err: err}
 	}
 
 	vars, err := parseArgs(args, result.repositoryPattern)
 	if err != nil {
-		fail(err.Error())
+		return &GpError{Err: err}
 	}
 
+	errCh := make(chan error)
 	var exitCode int
 	var wg sync.WaitGroup
 	wg.Add(len(vars))
@@ -157,7 +164,7 @@ func setEnvs(ctx context.Context, args []string) {
 		go func(v *serverapi.UserEnvVarValue) {
 			err = result.client.SetEnvVar(ctx, v)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "cannot set %s: %v\n", v.Name, err)
+				errCh <- fmt.Errorf("cannot set %s: %v\n", v.Name, err)
 				exitCode = -1
 			} else {
 				printVar(v, exportEnvs)
@@ -166,17 +173,27 @@ func setEnvs(ctx context.Context, args []string) {
 		}(v)
 	}
 	wg.Wait()
-	os.Exit(exitCode)
-}
 
-func deleteEnvs(args []string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-	result, err := connectToServer(ctx)
+	err = <-errCh
+	close(errCh)
 	if err != nil {
-		fail(err.Error())
+		gpErr := &GpError{
+			Err:      err,
+			ExitCode: exitCode,
+		}
+		return gpErr
 	}
 
+	return nil
+}
+
+func deleteEnvs(ctx context.Context, args []string) *GpError {
+	result, err := connectToServer(ctx)
+	if err != nil {
+		return &GpError{Err: err}
+	}
+
+	errCh := make(chan error)
 	var exitCode int
 	var wg sync.WaitGroup
 	wg.Add(len(args))
@@ -184,19 +201,25 @@ func deleteEnvs(args []string) {
 		go func(name string) {
 			err = result.client.DeleteEnvVar(ctx, &serverapi.UserEnvVarValue{Name: name, RepositoryPattern: result.repositoryPattern})
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "cannot unset %s: %v\n", name, err)
+				errCh <- fmt.Errorf("cannot unset %s: %v\n", name, err)
 				exitCode = -1
 			}
 			wg.Done()
 		}(name)
 	}
-	wg.Wait()
-	os.Exit(exitCode)
-}
 
-func fail(msg string) {
-	fmt.Fprintln(os.Stderr, msg)
-	os.Exit(-1)
+	wg.Wait()
+	err = <-errCh
+	close(errCh)
+	if err != nil {
+		gpErr := &GpError{
+			Err:      err,
+			ExitCode: exitCode,
+		}
+		return gpErr
+	}
+
+	return nil
 }
 
 func printVar(v *serverapi.UserEnvVarValue, export bool) {

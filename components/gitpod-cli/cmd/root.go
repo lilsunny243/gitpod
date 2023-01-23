@@ -7,7 +7,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -97,34 +96,41 @@ var rootCmd = &cobra.Command{
 
 		event := ctx.Value(ctxKeyAnalytics).(*utils.AnalyticsEvent)
 
-		cmdErr := ctx.Value(ctxKeyError).(GpError)
-		if cmdErr.Err != nil {
+		cmdErr := ctx.Value(ctxKeyError)
+		if cmdErr != nil {
+			gpErr := cmdErr.(GpError)
+			err := gpErr.Err
 			errorMessage := "gp cli error"
-			if cmdErr.Message != "" {
-				errorMessage = cmdErr.Message
+			if gpErr.Message != "" {
+				errorMessage = gpErr.Message
 			}
-			utils.LogError(ctx, cmdErr.Err, errorMessage, supervisorClient)
+			utils.LogError(ctx, err, errorMessage, supervisorClient)
 			event.Set("Outcome", utils.Outcome_SystemErr)
 		} else {
 			event.Set("Outcome", utils.Outcome_Success)
 		}
 
 		sendAnalytics := exec.Command(
-			rootCmdName,
+			"./gitpod-cli",
+			// rootCmdName,
 			"send-analytics",
 			"--data",
 			event.ExportToJson(ctx),
 		)
-		sendAnalytics.Stdout = ioutil.Discard
-		sendAnalytics.Stderr = ioutil.Discard
+		sendAnalytics.Stdout = os.Stdout
+		sendAnalytics.Stderr = os.Stderr
+		// sendAnalytics.Stdout = ioutil.Discard
+		// sendAnalytics.Stderr = ioutil.Discard
 
 		// fire and forget
-		_ = sendAnalytics.Start()
+		_ = sendAnalytics.Run()
+		// _ = sendAnalytics.Start()
 
-		if cmdErr.Err != nil {
+		if cmdErr != nil {
+			gpErr := cmdErr.(GpError)
 			exitCode := 1
-			if cmdErr.ExitCode != 0 {
-				exitCode = cmdErr.ExitCode
+			if gpErr.ExitCode != 0 {
+				exitCode = gpErr.ExitCode
 			}
 			os.Exit(exitCode)
 		}

@@ -227,7 +227,6 @@ var buildCmd = &cobra.Command{
 
 		analyticsData := cmd.Context().Value(ctxKeyAnalytics).(*utils.TrackCommandUsageParams)
 		outcome, err := runRebuild(ctx, supervisorClient, analyticsData)
-		// event.Set("Outcome", outcome)
 		analyticsData.Outcome = outcome
 
 		if outcome != utils.Outcome_Success && analyticsData.ErrorCode == "" {
@@ -240,8 +239,10 @@ var buildCmd = &cobra.Command{
 		}
 
 		if err != nil {
-			utils.LogError(ctx, err, "Failed to rebuild", supervisorClient)
-			os.Exit(1)
+			gpErr := &GpError{
+				Err: fmt.Errorf("Failed to rebuild: %v", err),
+			}
+			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
 		}
 	},
 }
