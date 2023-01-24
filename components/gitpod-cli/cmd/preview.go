@@ -16,7 +16,6 @@ import (
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
 	"github.com/google/shlex"
 	"github.com/spf13/cobra"
-	"golang.org/x/sys/unix"
 )
 
 var regexLocalhost = regexp.MustCompile(`((^(localhost|127\.0\.0\.1))|(https?://(localhost|127\.0\.0\.1)))(:[0-9]+)?`)
@@ -77,7 +76,14 @@ func openPreview(gpBrowserEnvVar string, url string) error {
 		return err
 	}
 
-	err = unix.Exec(pcmd, append(pargs, url), os.Environ())
+	var args []string
+	if len(pargs) > 1 && pargs[1] != "" {
+		args = append(args, pargs[1])
+	}
+	args = append(args, url)
+
+	previewCmd := exec.Command(pcmd, args...)
+	err = previewCmd.Run()
 	if err != nil {
 		return err
 	}

@@ -99,7 +99,7 @@ var rootCmd = &cobra.Command{
 
 		cmdErr := ctx.Value(ctxKeyError)
 		if cmdErr != nil {
-			gpErr := cmdErr.(GpError)
+			gpErr := cmdErr.(*GpError)
 			err := gpErr.Err
 			errorMessage := "gp cli error"
 			if gpErr.Message != "" {
@@ -124,7 +124,7 @@ var rootCmd = &cobra.Command{
 		_ = sendAnalytics.Start()
 
 		if cmdErr != nil {
-			gpErr := cmdErr.(GpError)
+			gpErr := cmdErr.(*GpError)
 			exitCode := 1
 			if gpErr.ExitCode != 0 {
 				exitCode = gpErr.ExitCode

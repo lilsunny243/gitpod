@@ -7,7 +7,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -57,7 +56,10 @@ var awaitPortCmd = &cobra.Command{
 			for _, proto := range protos {
 				tcp, err := os.ReadFile(proto)
 				if err != nil {
-					log.Fatalf("cannot read %v: %s", proto, err)
+					gpErr := &GpError{
+						Err: fmt.Errorf("cannot read %v: %s", proto, err),
+					}
+					cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
 				}
 
 				if pattern.MatchString(string(tcp)) {
