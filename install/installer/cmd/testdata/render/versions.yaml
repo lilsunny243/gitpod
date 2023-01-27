@@ -66,6 +66,8 @@ components:
   workspace:
     codeImage:
       version: test
+    gitpodWebImage:
+      version: test
     desktopIdeImages:
       codeDesktop:
         version: test
