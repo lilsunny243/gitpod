@@ -2097,6 +2097,7 @@ export class GitpodServerImpl implements GitpodServerWithTracing, Disposable {
 
         // Note: this operation is per-user only, hence needs no resource guard
         const user = this.checkAndBlockUser("createTeam");
+
         const team = await this.teamDB.createTeam(user.id, name);
         const invite = await this.getGenericInvite(ctx, team.id);
         ctx.span?.setTag("teamId", team.id);
