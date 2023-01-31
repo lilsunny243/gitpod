@@ -28,9 +28,13 @@ type GpError struct {
 	OutCome   string
 	ErrorCode string
 	ExitCode  int
+	Slience   bool
 }
 
 func (e GpError) Error() string {
+	if e.Slience {
+		return ""
+	}
 	ret := e.Message
 	if ret != "" && e.Err != nil {
 		ret += ": "

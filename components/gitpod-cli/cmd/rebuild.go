@@ -62,7 +62,7 @@ func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 		fmt.Println("")
 		fmt.Println("For help check out the reference page:")
 		fmt.Println("https://www.gitpod.io/docs/references/gitpod-yml#gitpodyml")
-		return GpError{Err: err, OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_MalformedGitpodYaml}
+		return GpError{Err: err, OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_MalformedGitpodYaml, Slience: true}
 	}
 
 	if gitpodConfig == nil {
@@ -72,7 +72,7 @@ func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 		fmt.Println("")
 		fmt.Println("Alternatively, check out the following docs for getting started configuring your project")
 		fmt.Println("https://www.gitpod.io/docs/configure#configure-gitpod")
-		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_MissingGitpodYaml}
+		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_MissingGitpodYaml, Slience: true}
 	}
 
 	var baseimage string
@@ -86,7 +86,7 @@ func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 
 		if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
 			fmt.Println("Your .gitpod.yml points to a Dockerfile that doesn't exist: " + dockerfilePath)
-			return GpError{Err: err, OutCome: utils.Outcome_UserErr}
+			return GpError{Err: err, OutCome: utils.Outcome_UserErr, Slience: true}
 		}
 		dockerfile, err := os.ReadFile(dockerfilePath)
 		if err != nil {
@@ -99,12 +99,12 @@ func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 			fmt.Println("https://www.gitpod.io/docs/configure/workspaces/workspace-image#use-a-custom-dockerfile")
 			fmt.Println("")
 			fmt.Println("Once you configure your Dockerfile, re-run this command to validate your changes")
-			return GpError{OutCome: utils.Outcome_UserErr}
+			return GpError{OutCome: utils.Outcome_UserErr, Slience: true}
 		}
 		baseimage = "\n" + string(dockerfile) + "\n"
 	default:
 		fmt.Println("Check your .gitpod.yml and make sure the image property is configured correctly")
-		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_MalformedGitpodYaml}
+		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_MalformedGitpodYaml, Slience: true}
 	}
 
 	if baseimage == "" {
@@ -112,7 +112,7 @@ func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 		fmt.Println("Check out the following docs, to know how to get started")
 		fmt.Println("")
 		fmt.Println("https://www.gitpod.io/docs/configure/workspaces/workspace-image#use-a-public-docker-image")
-		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_NoCustomImage}
+		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_NoCustomImage, Slience: true}
 	}
 
 	tmpDockerfile := filepath.Join(tmpDir, "Dockerfile")
@@ -137,19 +137,14 @@ func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 
 	imageBuildStartTime := time.Now()
 	err = dockerCmd.Run()
+	utils.AnalyticsEvent.Data.ImageBuildDuration = time.Since(imageBuildStartTime).Milliseconds()
 	if _, ok := err.(*exec.ExitError); ok {
 		fmt.Println("Image Build Failed")
-		ImageBuildDuration := time.Since(imageBuildStartTime).Milliseconds()
-		utils.AnalyticsEvent.Data.ImageBuildDuration = ImageBuildDuration
-		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_ImageBuildFailed}
+		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_ImageBuildFailed, Slience: true}
 	} else if err != nil {
 		fmt.Println("Docker error")
-		ImageBuildDuration := time.Since(imageBuildStartTime).Milliseconds()
-		utils.AnalyticsEvent.Data.ImageBuildDuration = ImageBuildDuration
-		return GpError{Err: err, ErrorCode: utils.RebuildErrorCode_DockerErr}
+		return GpError{Err: err, ErrorCode: utils.RebuildErrorCode_DockerErr, Slience: true}
 	}
-	ImageBuildDuration := time.Since(imageBuildStartTime).Milliseconds()
-	utils.AnalyticsEvent.Data.ImageBuildDuration = ImageBuildDuration
 
 	err = TerminateExistingContainer(ctx)
 	if err != nil {
@@ -193,7 +188,7 @@ func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 	err = dockerRunCmd.Start()
 	if err != nil {
 		fmt.Println("Failed to run docker container")
-		return GpError{Err: err, OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_DockerRunFailed}
+		return GpError{Err: err, OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_DockerRunFailed, Slience: true}
 	}
 
 	_ = dockerRunCmd.Wait()
