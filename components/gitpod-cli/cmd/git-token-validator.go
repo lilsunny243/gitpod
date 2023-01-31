@@ -77,6 +77,8 @@ var gitTokenValidator = &cobra.Command{
 		if err != nil {
 			log.WithError(err).Fatal("error connecting to server")
 		}
+		defer client.Close()
+
 		params := &serverapi.GuessGitTokenScopesParams{
 			Host:       gitTokenValidatorOpts.Host,
 			RepoURL:    gitTokenValidatorOpts.RepoURL,

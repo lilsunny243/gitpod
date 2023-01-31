@@ -49,6 +49,7 @@ var snapshotCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
+		defer client.Close()
 		snapshotId, err := client.TakeSnapshot(ctx, &protocol.TakeSnapshotOptions{
 			WorkspaceID: wsInfo.WorkspaceId,
 			DontWait:    true,

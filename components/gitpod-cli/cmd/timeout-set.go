@@ -39,6 +39,7 @@ For example, 30m, 1h, 2d, etc.`,
 		if err != nil {
 			return
 		}
+		defer client.Close()
 		duration, err := time.ParseDuration(args[0])
 		if err != nil {
 			return

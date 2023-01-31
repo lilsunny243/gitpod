@@ -31,6 +31,7 @@ var stopWorkspaceCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
+		defer client.Close()
 		return client.StopWorkspace(ctx, wsInfo.WorkspaceId)
 	},
 }

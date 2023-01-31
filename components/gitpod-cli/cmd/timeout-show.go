@@ -31,6 +31,7 @@ var showTimeoutCommand = &cobra.Command{
 		if err != nil {
 			return
 		}
+		defer client.Close()
 
 		res, err := client.GetWorkspaceTimeout(ctx, wsInfo.WorkspaceId)
 		if err != nil {

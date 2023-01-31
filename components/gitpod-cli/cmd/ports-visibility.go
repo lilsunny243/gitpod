@@ -50,6 +50,7 @@ var portsVisibilityCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("cannot connect to server, %s", err.Error())
 		}
+		defer client.Close()
 		if _, err := client.OpenPort(ctx, wsInfo.WorkspaceId, &serverapi.WorkspaceInstancePort{
 			Port:       float64(port),
 			Visibility: visibility,

@@ -129,6 +129,7 @@ func getEnvs(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer result.client.Close()
 
 	vars, err := result.client.GetEnvVars(ctx)
 	if err != nil {
@@ -147,6 +148,7 @@ func setEnvs(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	defer result.client.Close()
 
 	vars, err := parseArgs(args, result.repositoryPattern)
 	if err != nil {
@@ -173,6 +175,7 @@ func deleteEnvs(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	defer result.client.Close()
 
 	g, ctx := errgroup.WithContext(ctx)
 	var wg sync.WaitGroup
