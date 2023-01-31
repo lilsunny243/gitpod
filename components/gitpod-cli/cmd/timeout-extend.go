@@ -19,27 +19,28 @@ import (
 var extendTimeoutCmd = &cobra.Command{
 	Use:   "extend",
 	Short: "Extend timeout of current workspace",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		wsInfo, err := gitpod.GetWSInfo(ctx)
 		if err != nil {
-			fail(err.Error())
+			return
 		}
 		client, err := gitpod.ConnectToServer(ctx, wsInfo, []string{
 			"function:setWorkspaceTimeout",
 			"resource:workspace::" + wsInfo.WorkspaceId + "::get/update",
 		})
 		if err != nil {
-			fail(err.Error())
+			return
 		}
 		if _, err := client.SetWorkspaceTimeout(ctx, wsInfo.WorkspaceId, time.Minute*180); err != nil {
 			if err, ok := err.(*jsonrpc2.Error); ok && err.Code == serverapi.PLAN_PROFESSIONAL_REQUIRED {
-				fail("Cannot extend workspace timeout for current plan, please upgrade your plan")
+				return fmt.Errorf("Cannot extend workspace timeout for current plan, please upgrade your plan")
 			}
-			fail(err.Error())
+			return err
 		}
 		fmt.Println("Workspace timeout has been extended to three hours.")
+		return
 	},
 }
 

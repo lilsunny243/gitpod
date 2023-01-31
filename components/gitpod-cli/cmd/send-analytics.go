@@ -5,11 +5,15 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
+	"log"
+	"os"
+	"time"
 
-	"github.com/gitpod-io/gitpod/common-go/log"
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/utils"
+	"github.com/gitpod-io/gitpod/supervisor/api"
 	"github.com/spf13/cobra"
 )
 
@@ -17,44 +21,44 @@ var sendAnalyticsCmdOpts struct {
 	data string
 }
 
-// const (
-// 	supervisorPid = 1
-// )
-
 // sendAnalyticsCmd represents the send-analytics command
 var sendAnalyticsCmd = &cobra.Command{
 	Use:    "send-analytics",
 	Long:   "Sending anonymous statistics about the gp commands executed inside a workspace",
 	Hidden: true,
 	Args:   cobra.ExactArgs(0),
-	Run: func(cmd *cobra.Command, args []string) {
-		// if os.Getppid() != supervisorPid {
-		// 	err := errors.New("send-analytics should not be executed directly")
-		// 	log.Fatal(err)
-		// }
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
+		defer os.Exit(0)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// // test
+		// os.WriteFile(os.TempDir()+"/gitpod-send-analytics.log", []byte(sendAnalyticsCmdOpts.data), 0644)
+		// return
 
 		var data utils.TrackCommandUsageParams
-		err := json.Unmarshal([]byte(sendAnalyticsCmdOpts.data), &data)
+		err = json.Unmarshal([]byte(sendAnalyticsCmdOpts.data), &data)
 
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		ctx := cmd.Context()
-
-		supervisorClient := ctx.Value(ctxKeySupervisorClient).(*supervisor.SupervisorClient)
-
-		event := utils.NewAnalyticsEvent(ctx, supervisorClient, &data)
-
-		if data.ImageBuildDuration != 0 {
-			event.Set("ImageBuildDuration", data.ImageBuildDuration)
+		client, err := supervisor.New(context.Background())
+		if err != nil {
+			log.Fatal(err)
 		}
-
-		if data.Outcome != "" {
-			event.Set("Outcome", data.Outcome)
+		wsInfo, err := client.Info.WorkspaceInfo(ctx, &api.WorkspaceInfoRequest{})
+		if err != nil {
+			log.Fatal(err)
 		}
+		data.InstanceId = wsInfo.InstanceId
+		data.WorkspaceId = wsInfo.WorkspaceId
 
-		event.Send(ctx)
+		event := utils.NewAnalyticsEvent()
+		event.Data = &data
+
+		event.Send(ctx, wsInfo.OwnerId)
+		return
 	},
 }
 

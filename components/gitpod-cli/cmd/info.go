@@ -26,13 +26,19 @@ var infoCmdOpts struct {
 var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Display workspace info, such as its ID, class, etc.",
-	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Second)
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		client := ctx.Value(ctxKeySupervisorClient).(*supervisor.SupervisorClient)
+		client, err := supervisor.New(ctx)
+		if err != nil {
+			return err
+		}
 
 		wsInfo, err := client.Info.WorkspaceInfo(ctx, &api.WorkspaceInfoRequest{})
+		if err != nil {
+			return err
+		}
 
 		data := &infoData{
 			WorkspaceId:    wsInfo.WorkspaceId,
@@ -42,21 +48,13 @@ var infoCmd = &cobra.Command{
 			ClusterHost:    wsInfo.WorkspaceClusterHost,
 		}
 
-		if err != nil {
-			gpErr := &GpError{
-				Err: err,
-			}
-			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
-			return
-		}
-
 		if infoCmdOpts.Json {
 			content, _ := json.Marshal(data)
 			fmt.Println(string(content))
 			return
 		}
-
 		outputInfo(data)
+		return
 	},
 }
 

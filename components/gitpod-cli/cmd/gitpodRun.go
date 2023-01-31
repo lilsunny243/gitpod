@@ -7,7 +7,6 @@ package cmd
 import (
 	"encoding/base64"
 	"io"
-	"log"
 	"os"
 	"syscall"
 
@@ -26,9 +25,8 @@ var gitpodRunCmd = &cobra.Command{
 	Short:  "Used by Gitpod to ensure smooth operation",
 	Hidden: true,
 	Args:   cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		var tmpfile *os.File
-		var err error
 		if len(args) == 1 {
 			tmpfile, err = os.OpenFile(args[0], os.O_WRONLY|os.O_CREATE, 0700)
 		} else {
@@ -36,27 +34,28 @@ var gitpodRunCmd = &cobra.Command{
 		}
 		if err != nil {
 			_ = os.Remove(tmpfile.Name())
-			log.Fatal(err)
+			return
 		}
 
 		decoder := base64.NewDecoder(base64.RawStdEncoding, &delimitingReader{os.Stdin, false})
 		_, err = io.Copy(tmpfile, decoder)
 		if err != nil {
 			_ = os.Remove(tmpfile.Name())
-			log.Fatal(err)
+			return
 		}
 		tmpfile.Close()
 
 		err = os.Chmod(tmpfile.Name(), 0700)
 		if err != nil {
 			_ = os.Remove(tmpfile.Name())
-			log.Fatal(err)
+			return
 		}
 		err = syscall.Exec(tmpfile.Name(), []string{"gpr", "serve"}, []string{})
 		if err != nil {
 			_ = os.Remove(tmpfile.Name())
-			log.Fatal(err)
+			return
 		}
+		return
 	},
 }
 

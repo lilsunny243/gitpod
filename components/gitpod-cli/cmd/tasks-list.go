@@ -7,7 +7,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -23,19 +22,19 @@ import (
 var listTasksCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Lists the workspace tasks and their state",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		client, err := supervisor.New(ctx)
 		if err != nil {
-			log.Fatalf("cannot get task list: %s", err)
+			return fmt.Errorf("cannot get task list: %s", err)
 		}
 		defer client.Close()
 
 		tasks, err := client.GetTasksList(ctx)
 		if err != nil {
-			log.Fatalf("cannot get task list: %s", err)
+			return fmt.Errorf("cannot get task list: %s", err)
 		}
 
 		if len(tasks) == 0 {
@@ -85,6 +84,7 @@ var listTasksCmd = &cobra.Command{
 		}
 
 		table.Render()
+		return
 	},
 }
 

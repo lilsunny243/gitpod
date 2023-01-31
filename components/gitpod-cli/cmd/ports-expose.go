@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -24,18 +23,10 @@ var portExposeCmd = &cobra.Command{
 	Short: "Makes a port available on 0.0.0.0 so that it can be exposed to the internet",
 	Long:  ``,
 	Args:  cobra.RangeArgs(1, 2),
-	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := context.WithCancel(cmd.Context())
-		defer cancel()
-
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		srcp, err := strconv.ParseUint(args[0], 10, 16)
 		if err != nil {
-			gpErr := &GpError{
-				Err:      fmt.Errorf("local-port cannot be parsed as int: %s", err),
-				ExitCode: -1,
-			}
-			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
-			return
+			return fmt.Errorf("local-port cannot be parsed as int: %s", err)
 		}
 
 		trgp := srcp + 1
@@ -43,11 +34,7 @@ var portExposeCmd = &cobra.Command{
 			var err error
 			trgp, err = strconv.ParseUint(args[1], 10, 16)
 			if err != nil {
-				gpErr := &GpError{
-					Err:      fmt.Errorf("target-port cannot be parsed as int: %s", err),
-					ExitCode: -1,
-				}
-				cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
+				return fmt.Errorf("target-port cannot be parsed as int: %s", err)
 			}
 		}
 
@@ -66,10 +53,7 @@ var portExposeCmd = &cobra.Command{
 			fmt.Printf("Proxying HTTP traffic: 0.0.0.0:%d -> 127.0.0.1:%d (with host rewriting)\n", trgp, srcp)
 			err = http.ListenAndServe(fmt.Sprintf(":%d", trgp), nil)
 			if err != nil {
-				gpErr := &GpError{
-					Err: fmt.Errorf("reverse proxy: %s", err),
-				}
-				cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
+				return fmt.Errorf("reverse proxy: %s", err)
 			}
 			return
 		}
@@ -77,11 +61,7 @@ var portExposeCmd = &cobra.Command{
 		var p tcpproxy.Proxy
 		p.AddRoute(fmt.Sprintf(":%d", trgp), tcpproxy.To(fmt.Sprintf("127.0.0.1:%d", srcp)))
 		fmt.Printf("Forwarding traffic: 0.0.0.0:%d -> 127.0.0.1:%d\n", trgp, srcp)
-		err = p.Run()
-		gpErr := &GpError{
-			Err: err,
-		}
-		cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
+		return p.Run()
 	},
 }
 

@@ -5,12 +5,14 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
+
+	"context"
 
 	"github.com/google/shlex"
 	"github.com/spf13/cobra"
@@ -22,12 +24,16 @@ var openCmd = &cobra.Command{
 	Use:   "open <filename>",
 	Short: "Opens a file in Gitpod",
 	Args:  cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		// TODO(ak) use NotificationService.NotifyActive supervisor API instead
 
-		ctx := cmd.Context()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-		client := ctx.Value(ctxKeySupervisorClient).(*supervisor.SupervisorClient)
+		client, err := supervisor.New(ctx)
+		if err != nil {
+			return
+		}
 
 		client.WaitForIDEReady(ctx)
 
@@ -35,41 +41,25 @@ var openCmd = &cobra.Command{
 
 		pcmd := os.Getenv("GP_OPEN_EDITOR")
 		if pcmd == "" {
-			gpErr := &GpError{
-				Err: fmt.Errorf("GP_OPEN_EDITOR is not set"),
-			}
-			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
-			return
+			return fmt.Errorf("GP_OPEN_EDITOR is not set")
 		}
 		pargs, err := shlex.Split(pcmd)
 		if err != nil {
-			gpErr := &GpError{
-				Err: fmt.Errorf("cannot parse GP_OPEN_EDITOR: %v", err),
-			}
-			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
+			return fmt.Errorf("cannot parse GP_OPEN_EDITOR: %v", err)
 		}
 		if len(pargs) > 1 {
 			pcmd = pargs[0]
 		}
 		pcmd, err = exec.LookPath(pcmd)
 		if err != nil {
-			gpErr := &GpError{
-				Err: err,
-			}
-			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
+			return
 		}
 
 		if wait {
 			pargs = append(pargs, "--wait")
 		}
 
-		err = unix.Exec(pcmd, append(pargs, args...), os.Environ())
-		if err != nil {
-			gpErr := &GpError{
-				Err: err,
-			}
-			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
-		}
+		return unix.Exec(pcmd, append(pargs, args...), os.Environ())
 	},
 }
 

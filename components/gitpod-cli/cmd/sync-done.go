@@ -8,7 +8,6 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -19,21 +18,22 @@ var syncDoneCmd = &cobra.Command{
 	Use:   "sync-done <name>",
 	Short: "Notifies the corresponding gp sync-await calls that this event has happened",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		h := sha1.New()
 		h.Write([]byte(args[0]))
 		id := hex.EncodeToString(h.Sum(nil))
 		lockFile := fmt.Sprintf("/tmp/gp-%s.done", id)
 
-		if _, err := os.Stat(lockFile); !os.IsNotExist(err) {
+		if _, err = os.Stat(lockFile); !os.IsNotExist(err) {
 			// file already exists - we're done
-			return
+			return nil
 		}
 
-		err := os.WriteFile(lockFile, []byte("done"), 0600)
+		err = os.WriteFile(lockFile, []byte("done"), 0600)
 		if err != nil {
-			log.Fatalf("cannot write lock file: %v", err)
+			return fmt.Errorf("cannot write lock file: %v", err)
 		}
+		return
 	},
 }
 

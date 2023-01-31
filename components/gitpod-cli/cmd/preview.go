@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
 	"github.com/google/shlex"
@@ -29,12 +30,12 @@ var previewCmd = &cobra.Command{
 	Use:   "preview <url>",
 	Short: "Opens a URL in the IDE's preview",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		// TODO(ak) use NotificationService.NotifyActive supervisor API instead
 
-		ctx := cmd.Context()
-
-		client := ctx.Value(ctxKeySupervisorClient).(*supervisor.SupervisorClient)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		client, err := supervisor.New(ctx)
 
 		client.WaitForIDEReady(ctx)
 
@@ -48,13 +49,7 @@ var previewCmd = &cobra.Command{
 			gpBrowserEnvVar = "GP_EXTERNAL_BROWSER"
 		}
 
-		err := openPreview(gpBrowserEnvVar, url)
-		if err != nil {
-			gpErr := &GpError{
-				Err: err,
-			}
-			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
-		}
+		return openPreview(gpBrowserEnvVar, url)
 	},
 }
 

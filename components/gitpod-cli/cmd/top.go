@@ -9,11 +9,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
 	"github.com/gitpod-io/gitpod/supervisor/api"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/utils"
 
@@ -34,52 +34,38 @@ type topData struct {
 var topCmd = &cobra.Command{
 	Use:   "top",
 	Short: "Display usage of workspace resources (CPU and memory)",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Second)
 		defer cancel()
 
-		client := ctx.Value(ctxKeySupervisorClient).(*supervisor.SupervisorClient)
+		client, err := supervisor.New(ctx)
+		if err != nil {
+			return err
+		}
 
 		data := &topData{}
 
-		var wg sync.WaitGroup
-		wg.Add(2)
-
-		errCh := make(chan error)
-		wgDone := make(chan bool)
-
-		go func() {
+		g, ctx := errgroup.WithContext(ctx)
+		g.Go(func() error {
 			workspaceResources, err := client.Status.ResourcesStatus(ctx, &api.ResourcesStatuRequest{})
 			if err != nil {
-				errCh <- err
+				return err
 			}
 			data.Resources = workspaceResources
-			wg.Done()
-		}()
+			return nil
+		})
 
-		go func() {
-			if wsInfo, err := client.Info.WorkspaceInfo(ctx, &api.WorkspaceInfoRequest{}); err == nil {
-				data.WorkspaceClass = wsInfo.WorkspaceClass
-			} else {
-				errCh <- err
+		g.Go(func() error {
+			wsInfo, err := client.Info.WorkspaceInfo(ctx, &api.WorkspaceInfoRequest{})
+			if err != nil {
+				return err
 			}
-			wg.Done()
-		}()
+			data.WorkspaceClass = wsInfo.WorkspaceClass
+			return nil
+		})
 
-		go func() {
-			wg.Wait()
-			close(wgDone)
-		}()
-
-		select {
-		case <-wgDone:
-			break
-		case err := <-errCh:
-			close(errCh)
-			gpErr := &GpError{
-				Err: err,
-			}
-			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
+		err = g.Wait()
+		if err != nil {
 			return
 		}
 
@@ -89,6 +75,7 @@ var topCmd = &cobra.Command{
 			return
 		}
 		outputTable(data.Resources, data.WorkspaceClass)
+		return
 	},
 }
 

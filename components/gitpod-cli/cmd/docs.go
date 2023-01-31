@@ -5,8 +5,6 @@
 package cmd
 
 import (
-	"context"
-
 	"github.com/spf13/cobra"
 )
 
@@ -16,15 +14,8 @@ const DocsUrl = "https://www.gitpod.io/docs"
 var docsCmd = &cobra.Command{
 	Use:   "docs",
 	Short: "Open Gitpod Documentation in default browser",
-	Run: func(cmd *cobra.Command, args []string) {
-		ctx := cmd.Context()
-		err := openPreview("GP_EXTERNAL_BROWSER", DocsUrl)
-		if err != nil {
-			gpErr := &GpError{
-				Err: err,
-			}
-			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
-		}
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
+		return openPreview("GP_EXTERNAL_BROWSER", DocsUrl)
 	},
 }
 

@@ -22,24 +22,24 @@ var showTimeoutCommand = &cobra.Command{
 		defer cancel()
 		wsInfo, err := gitpod.GetWSInfo(ctx)
 		if err != nil {
-			fail(err.Error())
+			return
 		}
 		client, err := gitpod.ConnectToServer(ctx, wsInfo, []string{
 			"function:getWorkspaceTimeout",
 			"resource:workspace::" + wsInfo.WorkspaceId + "::get/update",
 		})
 		if err != nil {
-			fail(err.Error())
+			return
 		}
 
 		res, err := client.GetWorkspaceTimeout(ctx, wsInfo.WorkspaceId)
 		if err != nil {
-			fail(err.Error())
+			return
 		}
 
 		duration, err := time.ParseDuration(res.Duration)
 		if err != nil {
-			fail(err.Error())
+			return
 		}
 		fmt.Printf("Workspace timeout is set to %d minutes.\n", int(duration.Minutes()))
 	},

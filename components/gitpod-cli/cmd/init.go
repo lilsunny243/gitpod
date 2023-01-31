@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -30,29 +29,16 @@ var initCmd = &cobra.Command{
 	Long: `
 Create a Gitpod configuration for this project.
 	`,
-	Run: func(cmd *cobra.Command, args []string) {
-		ctx := cmd.Context()
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		cfg := gitpodlib.GitpodFile{}
 		if interactive {
-			if err := askForDockerImage(&cfg); err != nil {
-				gpErr := &GpError{
-					Err: err,
-				}
-				cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
+			if err = askForDockerImage(&cfg); err != nil {
 				return
 			}
-			if err := askForPorts(&cfg); err != nil {
-				gpErr := &GpError{
-					Err: err,
-				}
-				cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
+			if err = askForPorts(&cfg); err != nil {
 				return
 			}
-			if err := askForTask(&cfg); err != nil {
-				gpErr := &GpError{
-					Err: err,
-				}
-				cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
+			if err = askForTask(&cfg); err != nil {
 				return
 			}
 		} else {
@@ -62,10 +48,6 @@ Create a Gitpod configuration for this project.
 
 		d, err := yaml.Marshal(cfg)
 		if err != nil {
-			gpErr := &GpError{
-				Err: err,
-			}
-			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
 			return
 		}
 		if !interactive {
@@ -88,30 +70,25 @@ ports:
 			fmt.Printf("\n\n---\n%s", d)
 		}
 
-		if _, err := os.Stat(".gitpod.yml"); err == nil {
+		if _, err = os.Stat(".gitpod.yml"); err == nil {
 			prompt := promptui.Prompt{
 				IsConfirm: true,
 				Label:     ".gitpod.yml file already exists, overwrite?",
 			}
-			if _, err := prompt.Run(); err != nil {
+			if _, err = prompt.Run(); err != nil {
 				fmt.Printf("Not overwriting .gitpod.yml file. Aborting.\n")
 				return
 			}
 		}
 
-		if err := os.WriteFile(".gitpod.yml", d, 0644); err != nil {
-			// TODO(af): shall we introduce an outcome=cancelled?
-			gpErr := &GpError{
-				Err: err,
-			}
-			cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
+		if err = os.WriteFile(".gitpod.yml", d, 0644); err != nil {
 			return
 		}
 
 		// open .gitpod.yml and Dockerfile
 		if v, ok := cfg.Image.(gitpodlib.GitpodImage); ok {
-			if _, err := os.Stat(v.File); os.IsNotExist(err) {
-				if err := os.WriteFile(v.File, []byte(`FROM gitpod/workspace-full
+			if _, err = os.Stat(v.File); os.IsNotExist(err) {
+				if err = os.WriteFile(v.File, []byte(`FROM gitpod/workspace-full
 
 USER gitpod
 
@@ -124,10 +101,6 @@ USER gitpod
 #
 # More information: https://www.gitpod.io/docs/config-docker/
 `), 0644); err != nil {
-					gpErr := &GpError{
-						Err: err,
-					}
-					cmd.SetContext(context.WithValue(ctx, ctxKeyError, gpErr))
 					return
 				}
 			}
@@ -135,6 +108,7 @@ USER gitpod
 			openCmd.Run(cmd, []string{v.File})
 		}
 		openCmd.Run(cmd, []string{".gitpod.yml"})
+		return
 	},
 }
 

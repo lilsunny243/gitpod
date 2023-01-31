@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"github.com/gitpod-io/gitpod/common-go/analytics"
-	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
-	"github.com/gitpod-io/gitpod/supervisor/api"
 )
 
 const (
@@ -48,93 +46,44 @@ type TrackCommandUsageParams struct {
 	Outcome            string   `json:"outcome,omitempty"`
 }
 
-type AnalyticsEvent struct {
-	Data             *TrackCommandUsageParams
-	startTime        time.Time
-	supervisorClient *supervisor.SupervisorClient
-	ownerId          string
-	w                analytics.Writer
+type analyticsEvent struct {
+	Data      *TrackCommandUsageParams
+	StartTime time.Time
+	w         analytics.Writer
 }
 
-func NewAnalyticsEvent(ctx context.Context, supervisorClient *supervisor.SupervisorClient, cmdParams *TrackCommandUsageParams) *AnalyticsEvent {
-	event := &AnalyticsEvent{
-		startTime:        time.Now(),
-		supervisorClient: supervisorClient,
-		w:                analytics.NewFromEnvironment(),
+func NewAnalyticsEvent() *analyticsEvent {
+	return &analyticsEvent{
+		w: analytics.NewFromEnvironment(),
 	}
-
-	wsInfo, err := supervisorClient.Info.WorkspaceInfo(ctx, &api.WorkspaceInfoRequest{})
-	if err != nil {
-		LogError(ctx, err, "Could not fetch the workspace info", supervisorClient)
-		return nil
-	}
-
-	event.ownerId = wsInfo.OwnerId
-
-	event.Data = &TrackCommandUsageParams{
-		Command:     cmdParams.Command,
-		Flags:       cmdParams.Flags,
-		Duration:    cmdParams.Duration,
-		WorkspaceId: wsInfo.WorkspaceId,
-		InstanceId:  wsInfo.InstanceId,
-		ErrorCode:   cmdParams.ErrorCode,
-		Timestamp:   time.Now().UnixMilli(),
-	}
-
-	return event
 }
 
-func (e *AnalyticsEvent) Set(key string, value interface{}) *AnalyticsEvent {
-	switch key {
-	case "Command":
-		e.Data.Command = value.([]string)
-	case "Flags":
-		e.Data.Flags = value.([]string)
-	case "ErrorCode":
-		e.Data.ErrorCode = value.(string)
-	case "Duration":
-		e.Data.Duration = value.(int64)
-	case "WorkspaceId":
-		e.Data.WorkspaceId = value.(string)
-	case "InstanceId":
-		e.Data.InstanceId = value.(string)
-	case "ImageBuildDuration":
-		e.Data.ImageBuildDuration = value.(int64)
-	case "Outcome":
-		e.Data.Outcome = value.(string)
-	}
-	return e
-}
-
-func (e *AnalyticsEvent) ExportToJson(ctx context.Context) string {
-	e.Set("Duration", time.Since(e.startTime).Milliseconds())
-
+func (e *analyticsEvent) ExportToJson() string {
 	data, err := json.Marshal(e.Data)
 	if err != nil {
-		LogError(ctx, err, "error marshaling analytics data", e.supervisorClient)
+		LogError(err, "error marshaling analytics data")
 		os.Exit(1)
 	}
-
 	return string(data)
 }
 
-func (e *AnalyticsEvent) Send(ctx context.Context) {
+func (e *analyticsEvent) Send(ctx context.Context, userId string) {
 	defer e.w.Close()
 
 	data := make(map[string]interface{})
 	jsonData, err := json.Marshal(e.Data)
 	if err != nil {
-		LogError(ctx, err, "Could not marshal event data", e.supervisorClient)
+		LogError(err, "Could not marshal event data")
 		return
 	}
 	err = json.Unmarshal(jsonData, &data)
 	if err != nil {
-		LogError(ctx, err, "Could not unmarshal event data", e.supervisorClient)
+		LogError(err, "Could not unmarshal event data")
 		return
 	}
 
 	e.w.Track(analytics.TrackMessage{
-		Identity:   analytics.Identity{UserID: e.ownerId},
+		Identity:   analytics.Identity{UserID: userId},
 		Event:      "gp_command",
 		Properties: data,
 	})

@@ -5,15 +5,14 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
-	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -22,53 +21,40 @@ import (
 type contextKey int
 
 const (
-	ctxKeyAnalytics        contextKey = iota
-	ctxKeySupervisorClient contextKey = iota
-	ctxKeyError            contextKey = iota
-	rootCmdName                       = "gp"
+	rootCmdName = "gp"
 )
 
 type GpError struct {
-	Err      error
-	Message  string
-	ExitCode int
+	Err       error
+	Message   string
+	OutCome   string
+	ErrorCode string
+	ExitCode  int
 }
 
-var skipAnalytics = false
+func (e GpError) Error() string {
+	ret := e.Message
+	if ret != "" && e.Err != nil {
+		ret += ": "
+	}
+	if e.Err != nil {
+		ret += e.Err.Error()
+	}
+	return ret
+}
 
 func GetCommandName(path string) []string {
 	return strings.Fields(strings.TrimSpace(strings.TrimPrefix(path, rootCmdName)))
 }
 
 var rootCmd = &cobra.Command{
-	Use:   rootCmdName,
+	Use:           rootCmdName,
+	SilenceErrors: true,
+	// SilenceUsage:  true,
 	Short: "Command line interface for Gitpod",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// if os.Args[0] != "gp" {
-		// 	// skip analytics when running in development mode
-		// 	skipAnalytics = true
-		// }
-
-		if cmd.Name() == "send-analytics" {
-			// skip itself, otherwise we'd end up in a loop
-			skipAnalytics = true
-		}
-
-		ctx := context.Background()
-		supervisorClient, err := supervisor.New(ctx)
-		if err != nil {
-			utils.LogError(ctx, err, "Could not initialize supervisor client", supervisorClient)
-			return
-		}
-		supervisorClientCtx := context.WithValue(cmd.Context(), ctxKeySupervisorClient, supervisorClient)
-		cmd.SetContext(supervisorClientCtx)
-
-		if skipAnalytics {
-			return
-		}
-
+		cmd.SilenceUsage = true
 		cmdName := GetCommandName(cmd.CommandPath())
-
 		usedFlags := []string{}
 		flags := cmd.Flags()
 		flags.VisitAll(func(flag *pflag.Flag) {
@@ -76,61 +62,8 @@ var rootCmd = &cobra.Command{
 				usedFlags = append(usedFlags, flag.Name)
 			}
 		})
-
-		event := utils.NewAnalyticsEvent(ctx, supervisorClient, &utils.TrackCommandUsageParams{
-			Command: cmdName,
-			Flags:   usedFlags,
-		})
-
-		analyticsCtx := context.WithValue(cmd.Context(), ctxKeyAnalytics, event)
-		cmd.SetContext(analyticsCtx)
-	},
-	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		ctx := cmd.Context()
-
-		supervisorClient := ctx.Value(ctxKeySupervisorClient).(*supervisor.SupervisorClient)
-		defer supervisorClient.Close()
-
-		if skipAnalytics {
-			return
-		}
-
-		event := ctx.Value(ctxKeyAnalytics).(*utils.AnalyticsEvent)
-
-		cmdErr := ctx.Value(ctxKeyError)
-		if cmdErr != nil {
-			gpErr := cmdErr.(*GpError)
-			err := gpErr.Err
-			errorMessage := "gp cli error"
-			if gpErr.Message != "" {
-				errorMessage = gpErr.Message
-			}
-			utils.LogError(ctx, err, errorMessage, supervisorClient)
-			event.Set("Outcome", utils.Outcome_SystemErr)
-		} else {
-			event.Set("Outcome", utils.Outcome_Success)
-		}
-
-		sendAnalytics := exec.Command(
-			rootCmdName,
-			"send-analytics",
-			"--data",
-			event.ExportToJson(ctx),
-		)
-		sendAnalytics.Stdout = ioutil.Discard
-		sendAnalytics.Stderr = ioutil.Discard
-
-		// fire and forget
-		_ = sendAnalytics.Start()
-
-		if cmdErr != nil {
-			gpErr := cmdErr.(*GpError)
-			exitCode := 1
-			if gpErr.ExitCode != 0 {
-				exitCode = gpErr.ExitCode
-			}
-			os.Exit(exitCode)
-		}
+		utils.AnalyticsEvent.Data.Command = cmdName
+		utils.AnalyticsEvent.Data.Flags = usedFlags
 	},
 }
 
@@ -148,8 +81,59 @@ func Execute() {
 		}
 	}
 
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	err := rootCmd.Execute()
+	exitCode := 0
+	utils.AnalyticsEvent.Data.Outcome = utils.Outcome_Success
+	utils.AnalyticsEvent.Data.Duration = time.Since(utils.AnalyticsEvent.StartTime).Milliseconds()
+
+	if err != nil {
+		utils.AnalyticsEvent.Data.Outcome = utils.Outcome_SystemErr
+		exitCode = 1
+		if gpErr, ok := err.(GpError); ok {
+			if gpErr.ExitCode != 0 {
+				exitCode = gpErr.ExitCode
+			}
+			if gpErr.OutCome != "" {
+				utils.AnalyticsEvent.Data.Outcome = gpErr.OutCome
+			}
+			if gpErr.ErrorCode != "" {
+				utils.AnalyticsEvent.Data.ErrorCode = gpErr.ErrorCode
+			}
+		}
+		if utils.AnalyticsEvent.Data.ErrorCode == "" {
+			switch utils.AnalyticsEvent.Data.Outcome {
+			case utils.Outcome_UserErr:
+				utils.AnalyticsEvent.Data.ErrorCode = utils.UserErrorCode
+			case utils.Outcome_SystemErr:
+				utils.AnalyticsEvent.Data.ErrorCode = utils.SystemErrorCode
+			}
+		}
+	}
+
+	sendAnalytics()
+
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(exitCode)
+	}
+}
+
+func sendAnalytics() {
+	if len(utils.AnalyticsEvent.Data.Command) == 0 {
+		return
+	}
+	sendAnalytics := exec.Command(
+		"/proc/self/exe",
+		"send-analytics",
+		"--data",
+		utils.AnalyticsEvent.ExportToJson(),
+	)
+	sendAnalytics.Stdout = ioutil.Discard
+	sendAnalytics.Stderr = ioutil.Discard
+
+	// fire and release
+	_ = sendAnalytics.Start()
+	if sendAnalytics.Process != nil {
+		_ = sendAnalytics.Process.Release()
 	}
 }

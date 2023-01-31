@@ -31,7 +31,7 @@ var credentialHelper = &cobra.Command{
 	Long:   "Supports reading of credentials per host.",
 	Args:   cobra.MinimumNArgs(1),
 	Hidden: true,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		action := args[0]
 		log.SetOutput(io.Discard)
 		f, err := os.OpenFile(os.TempDir()+"/gitpod-git-credential-helper.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
@@ -40,7 +40,7 @@ var credentialHelper = &cobra.Command{
 			log.SetOutput(f)
 		}
 		if action != "get" {
-			return
+			return nil
 		}
 
 		result, err := parseFromStdin()
@@ -142,6 +142,7 @@ var credentialHelper = &cobra.Command{
 			log.WithError(err).Print("error releasing validator")
 			return
 		}
+		return
 	},
 }
 

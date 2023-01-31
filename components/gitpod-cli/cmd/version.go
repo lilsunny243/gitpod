@@ -19,8 +19,9 @@ var versionCmd = &cobra.Command{
 	Hidden: false,
 	Short:  "Prints the version of the CLI",
 	Args:   cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		fmt.Println(gitpod.Version)
+		return
 	},
 }
 

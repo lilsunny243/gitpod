@@ -21,21 +21,21 @@ import (
 var listPortsCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Lists the workspace ports and their states.",
-	Run: func(*cobra.Command, []string) {
+	RunE: func(*cobra.Command, []string) (err error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		client, portsListError := supervisor.New(ctx)
-		if portsListError != nil {
-			utils.LogError(ctx, portsListError, "Could not get the ports list.", client)
+		client, err := supervisor.New(ctx)
+		if err != nil {
+			utils.LogError(err, "Could not get the ports list.")
 			return
 		}
 		defer client.Close()
 
-		ports, portsListError := client.GetPortsList(ctx)
+		ports, err := client.GetPortsList(ctx)
 
-		if portsListError != nil {
-			utils.LogError(ctx, portsListError, "Could not get the ports list.", client)
+		if err != nil {
+			utils.LogError(err, "Could not get the ports list.")
 			return
 		}
 
@@ -110,6 +110,7 @@ var listPortsCmd = &cobra.Command{
 		}
 
 		table.Render()
+		return
 	},
 }
 
