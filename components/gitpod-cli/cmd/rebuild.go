@@ -211,7 +211,7 @@ var buildCmd = &cobra.Command{
 	Short:  "Re-builds the workspace image (useful to debug a workspace custom image)",
 	Hidden: false,
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
-		ctx, cancel := context.WithCancel(cmd.Context())
+		ctx, cancel := context.WithCancel(context.Background())
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 		go func() {

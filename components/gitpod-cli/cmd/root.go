@@ -48,8 +48,7 @@ func GetCommandName(path string) []string {
 var rootCmd = &cobra.Command{
 	Use:           rootCmdName,
 	SilenceErrors: true,
-	// SilenceUsage:  true,
-	Short: "Command line interface for Gitpod",
+	Short:         "Command line interface for Gitpod",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		cmd.SilenceUsage = true
 		cmdName := GetCommandName(cmd.CommandPath())

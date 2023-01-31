@@ -8,10 +8,7 @@ import (
 	"time"
 
 	"github.com/gitpod-io/gitpod/common-go/analytics"
-	"github.com/gitpod-io/gitpod/supervisor/api"
 )
-
-var WorkspaceInfo *api.WorkspaceInfoResponse
 
 var AnalyticsEvent *analyticsEvent = &analyticsEvent{
 	StartTime: time.Now(),

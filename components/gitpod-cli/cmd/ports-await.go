@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -26,13 +27,13 @@ var awaitPortCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		port, err := strconv.ParseUint(args[0], 10, 16)
 		if err != nil {
-			return
+			return GpError{Err: fmt.Errorf("port cannot be parsed as int: %s", err), OutCome: utils.UserErrorCode}
 		}
 
 		// Expected format: local port (in hex), remote address (irrelevant here), connection state ("0A" is "TCP_LISTEN")
 		pattern, err := regexp.Compile(fmt.Sprintf(":[0]*%X \\w+:\\w+ 0A ", port))
 		if err != nil {
-			return
+			return GpError{Err: fmt.Errorf("cannot compile regexp pattern"), OutCome: utils.UserErrorCode}
 		}
 
 		var protos []string
@@ -58,7 +59,6 @@ var awaitPortCmd = &cobra.Command{
 
 			time.Sleep(2 * time.Second)
 		}
-		return
 	},
 }
 

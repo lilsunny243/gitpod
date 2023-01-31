@@ -29,12 +29,12 @@ func LogError(errToReport error, errorMessage string, wsInfo *api.WorkspaceInfoR
 		log.SetLevel(log.FatalLevel)
 	}
 
-	if WorkspaceInfo == nil {
+	if wsInfo == nil {
 		log.WithError(err).Error("failed to retrieve workspace info")
 		return
 	}
 
-	parsedUrl, err := url.Parse(WorkspaceInfo.GitpodHost)
+	parsedUrl, err := url.Parse(wsInfo.GitpodHost)
 	if err != nil {
 		log.WithError(err).Error("cannot parse GitpodHost")
 		return
@@ -47,8 +47,8 @@ func LogError(errToReport error, errorMessage string, wsInfo *api.WorkspaceInfoR
 		Component:   "gitpod-cli",
 		Version:     gitpod.Version,
 		UserId:      "", // todo: retrieve this from server
-		WorkspaceId: WorkspaceInfo.WorkspaceId,
-		InstanceId:  WorkspaceInfo.InstanceId,
+		WorkspaceId: wsInfo.WorkspaceId,
+		InstanceId:  wsInfo.InstanceId,
 		Properties:  map[string]string{},
 	}
 

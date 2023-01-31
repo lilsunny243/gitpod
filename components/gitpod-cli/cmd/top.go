@@ -35,7 +35,7 @@ var topCmd = &cobra.Command{
 	Use:   "top",
 	Short: "Display usage of workspace resources (CPU and memory)",
 	RunE: func(cmd *cobra.Command, args []string) (err error) {
-		ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		client, err := supervisor.New(ctx)

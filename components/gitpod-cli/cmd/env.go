@@ -60,7 +60,7 @@ delete environment variables with a repository pattern of */foo, foo/* or */*.
 			log.SetOutput(f)
 		}
 
-		ctx, cancel := context.WithTimeout(cmd.Context(), 1*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 		defer cancel()
 
 		if len(args) > 0 {

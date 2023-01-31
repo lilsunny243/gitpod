@@ -33,7 +33,7 @@ var stopTaskCmd = &cobra.Command{
 
 		client, err := supervisor.New(context.Background())
 		if err != nil {
-			return fmt.Errorf("annot get task list: %s", err)
+			return fmt.Errorf("cannot get task list: %s", err)
 		}
 		defer client.Close()
 

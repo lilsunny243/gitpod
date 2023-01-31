@@ -36,6 +36,9 @@ var previewCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		client, err := supervisor.New(ctx)
+		if err != nil {
+			return err
+		}
 		defer client.Close()
 
 		client.WaitForIDEReady(ctx)
@@ -57,12 +60,11 @@ var previewCmd = &cobra.Command{
 func openPreview(gpBrowserEnvVar string, url string) error {
 	pcmd := os.Getenv(gpBrowserEnvVar)
 	if pcmd == "" {
-		err := fmt.Errorf("%s is not set", gpBrowserEnvVar)
-		return err
+		return fmt.Errorf("%s is not set", gpBrowserEnvVar)
 	}
 	pargs, err := shlex.Split(pcmd)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot parse %s: %v", gpBrowserEnvVar, err)
 	}
 	if len(pargs) > 1 {
 		pcmd = pargs[0]
