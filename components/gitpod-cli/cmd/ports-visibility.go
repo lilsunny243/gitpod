@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	gitpod "github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/utils"
 	serverapi "github.com/gitpod-io/gitpod/gitpod-protocol"
 	"github.com/spf13/cobra"

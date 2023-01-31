@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"os"
 
-	gitpod "github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
 	ide_metrics "github.com/gitpod-io/gitpod/ide-metrics-api"
 	"github.com/gitpod-io/gitpod/supervisor/api"
 	"github.com/go-errors/errors"

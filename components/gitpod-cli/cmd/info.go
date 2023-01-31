@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	gitpod "github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
 	"github.com/gitpod-io/gitpod/supervisor/api"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"

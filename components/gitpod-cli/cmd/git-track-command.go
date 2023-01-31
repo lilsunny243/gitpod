@@ -13,7 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	gitpod "github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
 	serverapi "github.com/gitpod-io/gitpod/gitpod-protocol"
 )
 

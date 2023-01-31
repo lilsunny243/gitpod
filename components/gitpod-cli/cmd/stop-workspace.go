@@ -8,7 +8,7 @@ import (
 	"context"
 	"time"
 
-	gitpod "github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
 	"github.com/spf13/cobra"
 )
 

@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	gitpod "github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
 	serverapi "github.com/gitpod-io/gitpod/gitpod-protocol"
 	"github.com/sourcegraph/jsonrpc2"
 	"github.com/spf13/cobra"
