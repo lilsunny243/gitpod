@@ -630,7 +630,7 @@ var (
 			{
 				NamespaceSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
-						"name": "monitoring",
+						"role": "monitoring",
 					},
 				},
 			},
