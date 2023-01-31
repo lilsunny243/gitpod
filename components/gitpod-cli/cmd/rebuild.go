@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
+	gitpod "github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/utils"
 	"github.com/gitpod-io/gitpod/supervisor/api"
 	"github.com/spf13/cobra"
@@ -49,12 +49,7 @@ func TerminateExistingContainer(ctx context.Context) error {
 	return nil
 }
 
-func runRebuild(ctx context.Context, supervisorClient *supervisor.SupervisorClient) error {
-	wsInfo, err := supervisorClient.Info.WorkspaceInfo(ctx, &api.WorkspaceInfoRequest{})
-	if err != nil {
-		return GpError{Err: err, OutCome: utils.Outcome_SystemErr}
-	}
-
+func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 	tmpDir, err := os.MkdirTemp("", "gp-rebuild-*")
 	if err != nil {
 		return GpError{Err: err, OutCome: utils.Outcome_SystemErr}
@@ -218,13 +213,12 @@ var buildCmd = &cobra.Command{
 			<-sigChan
 			cancel()
 		}()
-		client, err := supervisor.New(ctx)
+		wsInfo, err := gitpod.GetWSInfo(ctx)
 		if err != nil {
 			return err
 		}
-		defer client.Close()
 
-		return runRebuild(ctx, client)
+		return runRebuild(ctx, wsInfo)
 	},
 }
 

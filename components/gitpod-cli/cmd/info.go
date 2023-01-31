@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
+	gitpod "github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
 	"github.com/gitpod-io/gitpod/supervisor/api"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -30,13 +30,7 @@ var infoCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		client, err := supervisor.New(ctx)
-		if err != nil {
-			return err
-		}
-		defer client.Close()
-
-		wsInfo, err := client.Info.WorkspaceInfo(ctx, &api.WorkspaceInfoRequest{})
+		wsInfo, err := gitpod.GetWSInfo(ctx)
 		if err != nil {
 			return err
 		}

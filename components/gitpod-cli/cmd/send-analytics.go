@@ -11,9 +11,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
+	gitpod "github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/utils"
-	"github.com/gitpod-io/gitpod/supervisor/api"
 	"github.com/spf13/cobra"
 )
 
@@ -42,12 +41,7 @@ var sendAnalyticsCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		client, err := supervisor.New(context.Background())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		wsInfo, err := client.Info.WorkspaceInfo(ctx, &api.WorkspaceInfoRequest{})
+		wsInfo, err := gitpod.GetWSInfo(ctx)
 		if err != nil {
 			log.Fatal(err)
 		}
