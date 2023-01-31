@@ -1,5 +1,9 @@
 name: "Preview environment regression check"
 on:
+    workflow_run:
+        workflows: ["Build"]
+        types: [completed]
+        branches: ["main"]
     workflow_dispatch:
         inputs:
             name:
@@ -13,8 +17,13 @@ on:
                 required: false
                 default: harvester
 jobs:
+    # TODO: Add configuration job here like we have in build
+    # Also see here https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#using-data-from-the-triggering-workflow
+    # for how to get data from the triggering workflow (we need that to get the version)
     check:
         name: Check for regressions
+        # TODO: This should use config output instead and it should work for dispatch events too.
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
         runs-on: [self-hosted]
         steps:
             - uses: actions/checkout@v3
