@@ -114,7 +114,7 @@ func Execute() {
 	sendAnalytics()
 
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(exitCode)
 	}
 }

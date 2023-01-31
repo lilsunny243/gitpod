@@ -32,7 +32,7 @@ will print the URL of a service/server exposed on port 8080.`,
 
 		port, err := strconv.ParseUint(args[0], 10, 16)
 		if err != nil {
-			return GpError{Err: fmt.Errorf("port \"%s\" is not a valid number\n", args[0]), OutCome: utils.Outcome_UserErr}
+			return GpError{Err: fmt.Errorf("port \"%s\" is not a valid number", args[0]), OutCome: utils.Outcome_UserErr}
 		}
 
 		fmt.Println(GetWorkspaceURL(int(port)))
