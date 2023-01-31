@@ -34,6 +34,7 @@ var infoCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		wsInfo, err := client.Info.WorkspaceInfo(ctx, &api.WorkspaceInfoRequest{})
 		if err != nil {

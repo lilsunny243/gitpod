@@ -18,8 +18,6 @@ import (
 	"github.com/spf13/pflag"
 )
 
-type contextKey int
-
 const (
 	rootCmdName = "gp"
 )
@@ -122,11 +120,15 @@ func sendAnalytics() {
 	if len(utils.AnalyticsEvent.Data.Command) == 0 {
 		return
 	}
+	data, err := utils.AnalyticsEvent.ExportToJson()
+	if err != nil {
+		return
+	}
 	sendAnalytics := exec.Command(
 		"/proc/self/exe",
 		"send-analytics",
 		"--data",
-		utils.AnalyticsEvent.ExportToJson(),
+		data,
 	)
 	sendAnalytics.Stdout = ioutil.Discard
 	sendAnalytics.Stderr = ioutil.Discard

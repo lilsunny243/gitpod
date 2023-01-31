@@ -27,15 +27,12 @@ var listPortsCmd = &cobra.Command{
 
 		client, err := supervisor.New(ctx)
 		if err != nil {
-			utils.LogError(err, "Could not get the ports list.")
 			return
 		}
 		defer client.Close()
 
 		ports, err := client.GetPortsList(ctx)
-
 		if err != nil {
-			utils.LogError(err, "Could not get the ports list.")
 			return
 		}
 

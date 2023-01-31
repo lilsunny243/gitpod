@@ -36,6 +36,7 @@ var previewCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		client, err := supervisor.New(ctx)
+		defer client.Close()
 
 		client.WaitForIDEReady(ctx)
 

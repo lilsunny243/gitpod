@@ -34,6 +34,7 @@ var openCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
+		defer client.Close()
 
 		client.WaitForIDEReady(ctx)
 

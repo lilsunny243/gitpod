@@ -42,6 +42,7 @@ var topCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
 		data := &topData{}
 

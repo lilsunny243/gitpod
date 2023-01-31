@@ -7,7 +7,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
-	"os"
+	"fmt"
 	"time"
 
 	"github.com/gitpod-io/gitpod/common-go/analytics"
@@ -58,28 +58,25 @@ func NewAnalyticsEvent() *analyticsEvent {
 	}
 }
 
-func (e *analyticsEvent) ExportToJson() string {
+func (e *analyticsEvent) ExportToJson() (string, error) {
 	data, err := json.Marshal(e.Data)
 	if err != nil {
-		LogError(err, "error marshaling analytics data")
-		os.Exit(1)
+		return "", err
 	}
-	return string(data)
+	return string(data), nil
 }
 
-func (e *analyticsEvent) Send(ctx context.Context, userId string) {
+func (e *analyticsEvent) Send(ctx context.Context, userId string) error {
 	defer e.w.Close()
 
 	data := make(map[string]interface{})
 	jsonData, err := json.Marshal(e.Data)
 	if err != nil {
-		LogError(err, "Could not marshal event data")
-		return
+		return fmt.Errorf("Could not marshal event data: %w", err)
 	}
 	err = json.Unmarshal(jsonData, &data)
 	if err != nil {
-		LogError(err, "Could not unmarshal event data")
-		return
+		return fmt.Errorf("Could not unmarshal event data: %w", err)
 	}
 
 	e.w.Track(analytics.TrackMessage{
@@ -87,4 +84,5 @@ func (e *analyticsEvent) Send(ctx context.Context, userId string) {
 		Event:      "gp_command",
 		Properties: data,
 	})
+	return nil
 }

@@ -14,11 +14,12 @@ import (
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
 	ide_metrics "github.com/gitpod-io/gitpod/ide-metrics-api"
+	"github.com/gitpod-io/gitpod/supervisor/api"
 	"github.com/go-errors/errors"
 	log "github.com/sirupsen/logrus"
 )
 
-func LogError(errToReport error, errorMessage string) {
+func LogError(errToReport error, errorMessage string, wsInfo *api.WorkspaceInfoResponse) {
 	log.WithError(errToReport).Error(errorMessage)
 
 	file, err := os.OpenFile(os.TempDir()+"/gitpod-cli-errors.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)

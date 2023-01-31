@@ -218,12 +218,13 @@ var buildCmd = &cobra.Command{
 			<-sigChan
 			cancel()
 		}()
-		supervisorClient, err := supervisor.New(ctx)
+		client, err := supervisor.New(ctx)
 		if err != nil {
 			return err
 		}
+		defer client.Close()
 
-		return runRebuild(ctx, supervisorClient)
+		return runRebuild(ctx, client)
 	},
 }
 

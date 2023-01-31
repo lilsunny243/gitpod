@@ -38,7 +38,6 @@ var sendAnalyticsCmd = &cobra.Command{
 
 		var data utils.TrackCommandUsageParams
 		err = json.Unmarshal([]byte(sendAnalyticsCmdOpts.data), &data)
-
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -47,6 +46,7 @@ var sendAnalyticsCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		wsInfo, err := client.Info.WorkspaceInfo(ctx, &api.WorkspaceInfoRequest{})
 		if err != nil {
 			log.Fatal(err)
@@ -57,8 +57,12 @@ var sendAnalyticsCmd = &cobra.Command{
 		event := utils.NewAnalyticsEvent()
 		event.Data = &data
 
-		event.Send(ctx, wsInfo.OwnerId)
-		return
+		err = event.Send(ctx, wsInfo.OwnerId)
+		if err != nil {
+			utils.LogError(err, "", wsInfo)
+			return nil
+		}
+		return nil
 	},
 }
 
