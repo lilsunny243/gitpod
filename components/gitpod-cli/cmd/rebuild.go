@@ -52,7 +52,7 @@ func TerminateExistingContainer(ctx context.Context) error {
 func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 	tmpDir, err := os.MkdirTemp("", "gp-rebuild-*")
 	if err != nil {
-		return GpError{Err: err, OutCome: utils.Outcome_SystemErr}
+		return err
 	}
 	defer os.RemoveAll(tmpDir)
 
@@ -90,7 +90,7 @@ func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 		}
 		dockerfile, err := os.ReadFile(dockerfilePath)
 		if err != nil {
-			return GpError{Err: err, OutCome: utils.Outcome_SystemErr}
+			return err
 		}
 		if string(dockerfile) == "" {
 			fmt.Println("Your Gitpod's Dockerfile is empty")
@@ -120,13 +120,13 @@ func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 	err = os.WriteFile(tmpDockerfile, []byte(baseimage), 0644)
 	if err != nil {
 		fmt.Println("Could not write the temporary Dockerfile")
-		return GpError{Err: err, OutCome: utils.Outcome_SystemErr}
+		return err
 	}
 
 	dockerPath, err := exec.LookPath("docker")
 	if err != nil {
 		fmt.Println("Docker is not installed in your workspace")
-		return GpError{Err: err, OutCome: utils.Outcome_SystemErr, ErrorCode: utils.RebuildErrorCode_DockerNotFound}
+		return err
 	}
 
 	tag := "gp-rebuild-temp-build"
@@ -146,14 +146,14 @@ func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 		fmt.Println("Docker error")
 		ImageBuildDuration := time.Since(imageBuildStartTime).Milliseconds()
 		utils.AnalyticsEvent.Data.ImageBuildDuration = ImageBuildDuration
-		return GpError{Err: err, OutCome: utils.Outcome_SystemErr, ErrorCode: utils.RebuildErrorCode_DockerErr}
+		return GpError{Err: err, ErrorCode: utils.RebuildErrorCode_DockerErr}
 	}
 	ImageBuildDuration := time.Since(imageBuildStartTime).Milliseconds()
 	utils.AnalyticsEvent.Data.ImageBuildDuration = ImageBuildDuration
 
 	err = TerminateExistingContainer(ctx)
 	if err != nil {
-		return GpError{Err: err, OutCome: utils.Outcome_SystemErr}
+		return err
 	}
 
 	welcomeMessage := strings.Join([]string{
