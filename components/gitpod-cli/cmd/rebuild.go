@@ -137,7 +137,7 @@ func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 
 	imageBuildStartTime := time.Now()
 	err = dockerCmd.Run()
-	utils.AnalyticsEvent.Data.ImageBuildDuration = time.Since(imageBuildStartTime).Milliseconds()
+	utils.TrackCommandUsageEvent.ImageBuildDuration = time.Since(imageBuildStartTime).Milliseconds()
 	if _, ok := err.(*exec.ExitError); ok {
 		fmt.Println("Image Build Failed")
 		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_ImageBuildFailed, Slience: true}

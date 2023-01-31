@@ -63,8 +63,8 @@ var rootCmd = &cobra.Command{
 				usedFlags = append(usedFlags, flag.Name)
 			}
 		})
-		utils.AnalyticsEvent.Data.Command = cmdName
-		utils.AnalyticsEvent.Data.Flags = usedFlags
+		utils.TrackCommandUsageEvent.Command = cmdName
+		utils.TrackCommandUsageEvent.Flags = usedFlags
 	},
 }
 
@@ -84,29 +84,29 @@ func Execute() {
 
 	err := rootCmd.Execute()
 	exitCode := 0
-	utils.AnalyticsEvent.Data.Outcome = utils.Outcome_Success
-	utils.AnalyticsEvent.Data.Duration = time.Since(utils.AnalyticsEvent.StartTime).Milliseconds()
+	utils.TrackCommandUsageEvent.Outcome = utils.Outcome_Success
+	utils.TrackCommandUsageEvent.Duration = time.Since(time.UnixMilli(utils.TrackCommandUsageEvent.Timestamp)).Milliseconds()
 
 	if err != nil {
-		utils.AnalyticsEvent.Data.Outcome = utils.Outcome_SystemErr
+		utils.TrackCommandUsageEvent.Outcome = utils.Outcome_SystemErr
 		exitCode = 1
 		if gpErr, ok := err.(GpError); ok {
 			if gpErr.ExitCode != 0 {
 				exitCode = gpErr.ExitCode
 			}
 			if gpErr.OutCome != "" {
-				utils.AnalyticsEvent.Data.Outcome = gpErr.OutCome
+				utils.TrackCommandUsageEvent.Outcome = gpErr.OutCome
 			}
 			if gpErr.ErrorCode != "" {
-				utils.AnalyticsEvent.Data.ErrorCode = gpErr.ErrorCode
+				utils.TrackCommandUsageEvent.ErrorCode = gpErr.ErrorCode
 			}
 		}
-		if utils.AnalyticsEvent.Data.ErrorCode == "" {
-			switch utils.AnalyticsEvent.Data.Outcome {
+		if utils.TrackCommandUsageEvent.ErrorCode == "" {
+			switch utils.TrackCommandUsageEvent.Outcome {
 			case utils.Outcome_UserErr:
-				utils.AnalyticsEvent.Data.ErrorCode = utils.UserErrorCode
+				utils.TrackCommandUsageEvent.ErrorCode = utils.UserErrorCode
 			case utils.Outcome_SystemErr:
-				utils.AnalyticsEvent.Data.ErrorCode = utils.SystemErrorCode
+				utils.TrackCommandUsageEvent.ErrorCode = utils.SystemErrorCode
 			}
 		}
 	}
@@ -120,10 +120,10 @@ func Execute() {
 }
 
 func sendAnalytics() {
-	if len(utils.AnalyticsEvent.Data.Command) == 0 {
+	if len(utils.TrackCommandUsageEvent.Command) == 0 {
 		return
 	}
-	data, err := utils.AnalyticsEvent.ExportToJson()
+	data, err := utils.TrackCommandUsageEvent.ExportToJson()
 	if err != nil {
 		return
 	}

@@ -46,6 +46,14 @@ type TrackCommandUsageParams struct {
 	Outcome            string   `json:"outcome,omitempty"`
 }
 
+func (e *TrackCommandUsageParams) ExportToJson() (string, error) {
+	data, err := json.Marshal(e)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 type analyticsEvent struct {
 	Data      *TrackCommandUsageParams
 	StartTime time.Time
@@ -56,14 +64,6 @@ func NewAnalyticsEvent() *analyticsEvent {
 	return &analyticsEvent{
 		w: analytics.NewFromEnvironment(),
 	}
-}
-
-func (e *analyticsEvent) ExportToJson() (string, error) {
-	data, err := json.Marshal(e.Data)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
 }
 
 func (e *analyticsEvent) Send(ctx context.Context, userId string) error {
