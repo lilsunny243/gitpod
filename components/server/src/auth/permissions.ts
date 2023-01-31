@@ -52,7 +52,7 @@ function permission(
 export async function check(c: ResourceCheck, userID: string, resourceID: string) {
     const resp = await c(userID, resourceID);
     console.log(resp);
-    return resp.permissionship === v1.CheckPermissionResponse_Permissionship.HAS_PERMISSION;
+    // return resp.permissionship === v1.CheckPermissionResponse_Permissionship.HAS_PERMISSION;
 }
 
 // async function writeTeamRole(teamID: string, role: TeamRole, userID: string) {
