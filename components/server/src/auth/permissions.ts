@@ -5,6 +5,8 @@
  */
 
 import { v1 } from "@authzed/authzed-node";
+import { ErrorCodes } from "@gitpod/gitpod-protocol/lib/messaging/error";
+import { ResponseError } from "vscode-ws-jsonrpc";
 
 const client = v1.NewClient("mytokenhere");
 
@@ -29,31 +31,65 @@ function userSubject(id: string): v1.SubjectReference {
 
 // type TeamPermission = "read_team";
 
-const READ_TEAM = permission("team", "read_team");
-console.log(READ_TEAM);
+interface PermissionChecker {
+    check(userID: string, resourceID: string): Promise<void>;
+}
 
-type ResourceCheck = (userID: string, resourceID: string) => Promise<boolean>;
+class DeclarativePermission implements PermissionChecker {
+    private resourceType: ObjectType;
+    private action: string;
 
-function permission(
-    resource: ObjectType,
-    perm: string,
-): (userID: string, resourceID: string) => Promise<v1.CheckPermissionResponse> {
-    return async (userID: string, resourceID: string) => {
+    constructor(resourceType: ObjectType, action: string) {
+        this.resourceType = resourceType;
+        this.action = action;
+    }
+
+    async check(userID: string, resourceID: string): Promise<void> {
         const req = v1.CheckPermissionRequest.create({
             subject: userSubject(userID),
-            permission: perm,
-            resource: obj(resource, resourceID),
+            permission: this.action,
+            resource: obj(this.resourceType, resourceID),
         });
 
-        return client.promises.checkPermission(req);
-    };
+        const response = await client.promises.checkPermission(req);
+        if (response.permissionship === v1.CheckPermissionResponse_Permissionship.HAS_PERMISSION) {
+            return;
+        }
+
+        throw new ResponseError(
+            ErrorCodes.PERMISSION_DENIED,
+            `User (ID: ${userID}) is not permitted to perform ${this.action} on resource ${this.resourceType} (ID: ${resourceID}).`,
+        );
+    }
 }
 
-export async function check(c: ResourceCheck, userID: string, resourceID: string) {
-    const resp = await c(userID, resourceID);
-    console.log(resp);
-    // return resp.permissionship === v1.CheckPermissionResponse_Permissionship.HAS_PERMISSION;
+class StaticPermission implements PermissionChecker {
+    private action: string;
+    private result: boolean;
+    private resourceType: ObjectType;
+
+    constructor(resourceType: ObjectType, action: string, result: boolean) {
+        this.result = result;
+        this.action = action;
+        this.resourceType = resourceType;
+    }
+
+    async check(userID: string, resourceID: string): Promise<void> {
+        if (this.result) {
+            return;
+        }
+
+        throw new ResponseError(
+            ErrorCodes.PERMISSION_DENIED,
+            `User (ID: ${userID}) is not permitted to perform ${this.action} on resource ${this.resourceType} (ID: ${resourceID}).`,
+        );
+    }
 }
+
+// Anyone is able to create a new team.
+export const CreateTeam = new StaticPermission("team", "create", true);
+
+export const ReadTeam = new DeclarativePermission("team", "read");
 
 // async function writeTeamRole(teamID: string, role: TeamRole, userID: string) {
 //     const req = v1.WriteRelationshipsRequest.create({

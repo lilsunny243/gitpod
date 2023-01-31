@@ -180,6 +180,7 @@ import * as grpc from "@grpc/grpc-js";
 import { CachingBlobServiceClientProvider } from "../util/content-service-sugar";
 import { CostCenterJSON } from "@gitpod/gitpod-protocol/lib/usage";
 import { createCookielessId, maskIp } from "../analytics";
+import * as perms from "../auth/permissions";
 
 // shortcut
 export const traceWI = (ctx: TraceContext, wi: Omit<LogContext, "userId">) => TraceContext.setOWI(ctx, wi); // userId is already taken care of in WebsocketConnectionManager
@@ -2097,6 +2098,9 @@ export class GitpodServerImpl implements GitpodServerWithTracing, Disposable {
 
         // Note: this operation is per-user only, hence needs no resource guard
         const user = this.checkAndBlockUser("createTeam");
+
+        perms.CreateTeam.check(user.id);
+        perms.check(perms.READ_TEAM, user.id);
 
         const team = await this.teamDB.createTeam(user.id, name);
         const invite = await this.getGenericInvite(ctx, team.id);
