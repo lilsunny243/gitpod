@@ -362,6 +362,38 @@ export class GitpodServerEEImpl extends GitpodServerImpl {
         return { valid: true };
     }
 
+    goDurationToHumanReadable(goDuration: string): string {
+        const [, value, unit] = goDuration.match(/^(\d+)([mh])$/)!;
+        let duration = parseInt(value);
+
+        switch (unit) {
+            case "m":
+                duration *= 60;
+                break;
+            case "h":
+                duration *= 60 * 60;
+                break;
+        }
+
+        const hours = Math.floor(duration / 3600);
+        duration %= 3600;
+        const minutes = Math.floor(duration / 60);
+        duration %= 60;
+
+        let result = "";
+        if (hours) {
+            result += `${hours} hour${hours === 1 ? "" : "s"}`;
+            if (minutes) {
+                result += " and ";
+            }
+        }
+        if (minutes) {
+            result += `${minutes} minute${minutes === 1 ? "" : "s"}`;
+        }
+
+        return result;
+    }
+
     public async setWorkspaceTimeout(
         ctx: TraceContext,
         workspaceId: string,
@@ -404,6 +436,7 @@ export class GitpodServerEEImpl extends GitpodServerImpl {
 
         return {
             resetTimeoutOnWorkspaces: [workspace.id],
+            humanReadableDuration: this.goDurationToHumanReadable(validatedDuration),
         };
     }
 
@@ -423,7 +456,7 @@ export class GitpodServerEEImpl extends GitpodServerImpl {
         if (!runningInstance) {
             log.warn({ userId: user.id, workspaceId }, "Can only get keep-alive for running workspaces");
             const duration = WORKSPACE_TIMEOUT_DEFAULT_SHORT;
-            return { duration, canChange };
+            return { duration, canChange, humanReadableDuration: this.goDurationToHumanReadable(duration) };
         }
         await this.guardAccess({ kind: "workspaceInstance", subject: runningInstance, workspace: workspace }, "get");
 
@@ -437,7 +470,7 @@ export class GitpodServerEEImpl extends GitpodServerImpl {
         const desc = await client.describeWorkspace(ctx, req);
         const duration = desc.getStatus()!.getSpec()!.getTimeout();
 
-        return { duration, canChange };
+        return { duration, canChange, humanReadableDuration: this.goDurationToHumanReadable(duration) };
     }
 
     public async isPrebuildDone(ctx: TraceContext, pwsId: string): Promise<boolean> {

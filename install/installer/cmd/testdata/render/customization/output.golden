@@ -1078,6 +1078,23 @@ automountServiceAccountToken: true
 secrets:
   - name: messagebus
 ---
+# v1/ServiceAccount redis
+apiVersion: v1
+automountServiceAccountToken: true
+kind: ServiceAccount
+metadata:
+  annotations:
+    gitpod.io: hello
+    hello: world
+  creationTimestamp: null
+  labels:
+    app: gitpod
+    component: redis
+    gitpod.io: hello
+    hello: world
+  name: redis
+  namespace: default
+---
 # v1/ServiceAccount registry-facade
 apiVersion: v1
 automountServiceAccountToken: true
@@ -3157,6 +3174,52 @@ data:
       name: public-api-server
       namespace: default
     ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      annotations:
+        gitpod.io: hello
+        hello: world
+      creationTimestamp: null
+      labels:
+        app: gitpod
+        component: redis
+        gitpod.io: hello
+        hello: world
+      name: redis
+      namespace: default
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      annotations:
+        gitpod.io: hello
+        hello: world
+      creationTimestamp: null
+      labels:
+        app: gitpod
+        component: redis
+        gitpod.io: hello
+        hello: world
+        kind: service
+      name: redis
+      namespace: default
+    ---
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      annotations:
+        gitpod.io: hello
+        hello: world
+      creationTimestamp: null
+      labels:
+        app: gitpod
+        component: redis
+        gitpod.io: hello
+        hello: world
+      name: redis
+      namespace: default
+    ---
     apiVersion: v1
     kind: ConfigMap
     metadata:
@@ -4197,14 +4260,14 @@ data:
             "type": "browser",
             "logo": "https://ide.gitpod.example.com/image/ide-logo/vscode.svg",
             "label": "Browser",
-            "image": "eu.gcr.io/gitpod-core-dev/build/ide/code:commit-fa016a88512ebc605dd1f13d6fe002398c2540d8",
+            "image": "eu.gcr.io/gitpod-core-dev/build/ide/code:commit-243178c3f905d5b7df8d67c01244a451f20891ff",
             "latestImage": "eu.gcr.io/gitpod-core-dev/build/ide/code:nightly",
             "imageLayers": [
-              "eu.gcr.io/gitpod-core-dev/build/ide/gitpod-code-web:commit-1f8f65b4b9b1be9c8bc5a981974a8d29c54ba235",
+              "eu.gcr.io/gitpod-core-dev/build/ide/gitpod-code-web:commit-b513e548113c7cddeb2d12e8e1a20f56245a8224",
               "eu.gcr.io/gitpod-core-dev/build/ide/code-codehelper:test"
             ],
             "latestImageLayers": [
-              "eu.gcr.io/gitpod-core-dev/build/ide/gitpod-code-web:commit-1f8f65b4b9b1be9c8bc5a981974a8d29c54ba235",
+              "eu.gcr.io/gitpod-core-dev/build/ide/gitpod-code-web:commit-b513e548113c7cddeb2d12e8e1a20f56245a8224",
               "eu.gcr.io/gitpod-core-dev/build/ide/code-codehelper:test"
             ]
           },
@@ -5855,6 +5918,12 @@ data:
         "contentChunkLimit": 100,
         "purgeRetentionPeriodDays": 365,
         "purgeChunkLimit": 5000
+      },
+      "completeSnapshotJob": {
+        "disabled": false
+      },
+      "longRunningMigrationsJob": {
+        "disabled": false
       },
       "authProviderConfigFiles": [],
       "incrementalPrebuilds": {
@@ -8008,6 +8077,35 @@ spec:
   selector:
     app: gitpod
     component: public-api-server
+  type: ClusterIP
+status:
+  loadBalancer: {}
+---
+# v1/Service redis
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    gitpod.io: hello
+    hello: world
+  creationTimestamp: null
+  labels:
+    app: gitpod
+    component: redis
+    gitpod.io: hello
+    hello: world
+    kind: service
+  name: redis
+  namespace: default
+spec:
+  ports:
+  - name: api
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
+  selector:
+    app: gitpod
+    component: redis
   type: ClusterIP
 status:
   loadBalancer: {}
@@ -10749,6 +10847,114 @@ spec:
           secretName: mysql
 status: {}
 ---
+# apps/v1/Deployment redis
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    gitpod.io: hello
+    hello: world
+  creationTimestamp: null
+  labels:
+    app: gitpod
+    component: redis
+    gitpod.io: hello
+    hello: world
+  name: redis
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitpod
+      component: redis
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        gitpod.io: hello
+        hello: world
+      creationTimestamp: null
+      labels:
+        app: gitpod
+        component: redis
+        gitpod.io: hello
+        hello: world
+      name: redis
+      namespace: default
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: gitpod.io/workload_meta
+                operator: Exists
+      containers:
+      - command:
+        - redis-server
+        - --save ""
+        - --appendonly no
+        - --maxmemory 100mb
+        - --maxmemory-policy allkeys-lru
+        - --port 6379
+        env:
+        - name: GITPOD_DOMAIN
+          value: gitpod.example.com
+        - name: GITPOD_INSTALLATION_SHORTNAME
+          value: default
+        - name: GITPOD_REGION
+          value: local
+        - name: HOST_URL
+          value: https://gitpod.example.com
+        - name: KUBE_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBE_DOMAIN
+          value: svc.cluster.local
+        - name: LOG_LEVEL
+          value: info
+        image: registry.hub.docker.com/library/redis:7.0.8
+        imagePullPolicy: IfNotPresent
+        name: redis
+        ports:
+        - containerPort: 6379
+          name: api
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_readiness_local.sh 1
+          failureThreshold: 5
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128M
+        securityContext:
+          runAsGroup: 65532
+          runAsNonRoot: true
+          runAsUser: 65532
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: false
+      priorityClassName: system-node-critical
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: false
+      serviceAccountName: redis
+      terminationGracePeriodSeconds: 30
+status: {}
+---
 # apps/v1/Deployment registry
 # Source: docker-registry/charts/docker-registry/templates/deployment.yaml
 apiVersion: apps/v1
@@ -10871,7 +11077,7 @@ spec:
     metadata:
       annotations:
         gitpod.io: hello
-        gitpod.io/checksum_config: e6d05fffcf5e9ac587d92811be31ad9dc44b346e423c57418d858e26bcf9552b
+        gitpod.io/checksum_config: bd1abec4fc8b94c536ffa2f49b5973514fa5312e26118b91586341dad4028ca9
         hello: world
       creationTimestamp: null
       labels:

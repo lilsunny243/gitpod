@@ -1,6 +1,11 @@
 # Change Log
 
 ## February 2023
+- Allow user custom workspace timeout in vscode. ([#16220](https://github.com/gitpod-io/gitpod/pull/16220)) - [@iQQBot](https://github.com/iQQBot)
+- Always show all navigation menu items ([#16308](https://github.com/gitpod-io/gitpod/pull/16308)) - [@gtsiolis](https://github.com/gtsiolis)
+- Improve prompt for `Gitpod: Open in VS Code` action in Browser Code ([#16321](https://github.com/gitpod-io/gitpod/pull/16321)) - [@mustard-mh](https://github.com/mustard-mh)
+- Reverse order of Feedback emojis ([#16292](https://github.com/gitpod-io/gitpod/pull/16292)) - [@atduarte](https://github.com/atduarte)
+- Fix evaluation of BillingMode: Ignore old "free" subscription entries ([#16270](https://github.com/gitpod-io/gitpod/pull/16270)) - [@geropl](https://github.com/geropl)
 - [fix] :Preselect editor and class on the new workspace modal on first load ([#15946](https://github.com/gitpod-io/gitpod/pull/15946)) - [@yashikajotwani12](https://github.com/yashikajotwani12)
 - Added `Workspace Context Url` to `gp info` ([#16096](https://github.com/gitpod-io/gitpod/pull/16096)) - [@Kwok-he-Chu](https://github.com/Kwok-he-Chu)
 - Associate users logging in with a SSO provider to that Organization (and make the first an owner) ([#16206](https://github.com/gitpod-io/gitpod/pull/16206)) - [@geropl](https://github.com/geropl)

@@ -11,9 +11,12 @@ import (
 	"fmt"
 
 	wsk8s "github.com/gitpod-io/gitpod/common-go/kubernetes"
+	config "github.com/gitpod-io/gitpod/ws-manager/api/config"
 	workspacev1 "github.com/gitpod-io/gitpod/ws-manager/api/crd/v1"
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -28,7 +31,7 @@ const (
 	containerUnknownExitCode = 255
 )
 
-func updateWorkspaceStatus(ctx context.Context, workspace *workspacev1.Workspace, pods corev1.PodList) error {
+func updateWorkspaceStatus(ctx context.Context, workspace *workspacev1.Workspace, pods corev1.PodList, cfg *config.Configuration) error {
 	log := log.FromContext(ctx)
 
 	switch len(pods.Items) {
@@ -79,6 +82,26 @@ func updateWorkspaceStatus(ctx context.Context, workspace *workspacev1.Workspace
 		workspace.Status.Runtime.PodName = pod.Name
 	}
 
+	if workspace.Spec.Type != workspacev1.WorkspaceTypeRegular {
+		workspace.Status.Headless = true
+	}
+
+	if workspace.Status.URL == "" {
+		url, err := config.RenderWorkspaceURL(cfg.WorkspaceURLTemplate, workspace.Name, workspace.Spec.Ownership.WorkspaceID, cfg.GitpodHostURL)
+		if err != nil {
+			return xerrors.Errorf("cannot get workspace URL: %w", err)
+		}
+		workspace.Status.URL = url
+	}
+
+	if workspace.Status.OwnerToken == "" {
+		ownerToken, err := getRandomString(32)
+		if err != nil {
+			return xerrors.Errorf("cannot create owner token: %w", err)
+		}
+		workspace.Status.OwnerToken = ownerToken
+	}
+
 	failure, phase := extractFailure(workspace, pod)
 	if phase != nil {
 		workspace.Status.Phase = *phase
@@ -98,14 +121,7 @@ func updateWorkspaceStatus(ctx context.Context, workspace *workspacev1.Workspace
 	case isPodBeingDeleted(pod):
 		workspace.Status.Phase = workspacev1.WorkspacePhaseStopping
 
-		var hasFinalizer bool
-		for _, f := range pod.Finalizers {
-			if f == gitpodPodFinalizerName {
-				hasFinalizer = true
-				break
-			}
-		}
-		if hasFinalizer {
+		if controllerutil.ContainsFinalizer(pod, gitpodPodFinalizerName) {
 			if wsk8s.ConditionPresentAndTrue(workspace.Status.Conditions, string(workspacev1.WorkspaceConditionBackupComplete)) ||
 				wsk8s.ConditionPresentAndTrue(workspace.Status.Conditions, string(workspacev1.WorkspaceConditionBackupFailure)) ||
 				wsk8s.ConditionWithStatusAndReason(workspace.Status.Conditions, string(workspacev1.WorkspaceConditionContentReady), false, "InitializationFailure") {
@@ -287,4 +303,9 @@ func extractFailureFromLogs(logs []byte) string {
 func isPodBeingDeleted(pod *corev1.Pod) bool {
 	// if the pod is being deleted the only marker we have is that the deletionTimestamp is set
 	return pod.ObjectMeta.DeletionTimestamp != nil
+}
+
+// isWorkspaceBeingDeleted returns true if the workspace resource is currently being deleted.
+func isWorkspaceBeingDeleted(ws *workspacev1.Workspace) bool {
+	return ws.ObjectMeta.DeletionTimestamp != nil
 }

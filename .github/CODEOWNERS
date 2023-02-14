@@ -24,7 +24,7 @@
 /components/ide-service @gitpod-io/engineering-ide
 /components/ide-service-api @gitpod-io/engineering-ide
 /components/ide-proxy @gitpod-io/engineering-ide
-/components/image-builder-api @WVerlaek @geropl
+/components/image-builder-api @gitpod-io/engineering-workspace
 /components/image-builder-bob @gitpod-io/engineering-workspace
 /components/image-builder-mk3 @gitpod-io/engineering-workspace
 /components/installation-telemetry @gitpod-io/engineering-security-infrastructure-and-delivery
@@ -88,7 +88,7 @@
 /components/workspacekit @gitpod-io/engineering-workspace
 /components/ws-daemon-api @aledbf @Furisto
 /components/ws-daemon @gitpod-io/engineering-workspace
-/components/ws-manager-api @aledbf @csweichel @kylos101
+/components/ws-manager-api @gitpod-io/engineering-workspace
 /components/ws-manager-bridge-api @gitpod-io/engineering-webapp
 /components/ws-manager-bridge @gitpod-io/engineering-webapp
 /components/ws-manager @gitpod-io/engineering-workspace

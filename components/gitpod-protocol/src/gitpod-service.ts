@@ -62,6 +62,7 @@ import { IDEServer } from "./ide-protocol";
 import { ListUsageRequest, ListUsageResponse, CostCenterJSON } from "./usage";
 import { SupportedWorkspaceClass } from "./workspace-class";
 import { BillingMode } from "./billing-mode";
+import { WorkspaceRegion } from "./workspace-cluster";
 
 export interface GitpodClient {
     onInstanceUpdate(instance: WorkspaceInstance): void;
@@ -358,16 +359,25 @@ export interface ClientHeaderFields {
     clientRegion?: string;
 }
 
+const WORKSPACE_MAXIMUM_TIMEOUT_HOURS = 24;
+
 export type WorkspaceTimeoutDuration = string;
 export namespace WorkspaceTimeoutDuration {
     export function validate(duration: string): WorkspaceTimeoutDuration {
+        duration = duration.toLowerCase();
         const unit = duration.slice(-1);
-        if (!["m", "h", "d"].includes(unit)) {
+        if (!["m", "h"].includes(unit)) {
             throw new Error(`Invalid timeout unit: ${unit}`);
         }
-        const value = parseInt(duration.slice(0, -1));
+        const value = parseInt(duration.slice(0, -1), 10);
         if (isNaN(value) || value <= 0) {
             throw new Error(`Invalid timeout value: ${duration}`);
+        }
+        if (
+            (unit === "h" && value > WORKSPACE_MAXIMUM_TIMEOUT_HOURS) ||
+            (unit === "m" && value > WORKSPACE_MAXIMUM_TIMEOUT_HOURS * 60)
+        ) {
+            throw new Error("Workspace inactivity timeout cannot exceed 24h");
         }
         return duration;
     }
@@ -402,11 +412,13 @@ export const createServerMock = function <C extends GitpodClient, S extends Gitp
 
 export interface SetWorkspaceTimeoutResult {
     resetTimeoutOnWorkspaces: string[];
+    humanReadableDuration: string;
 }
 
 export interface GetWorkspaceTimeoutResult {
     duration: WorkspaceTimeoutDuration;
     canChange: boolean;
+    humanReadableDuration: string;
 }
 
 export interface StartWorkspaceResult {
@@ -439,7 +451,7 @@ export namespace GitpodServer {
         forceDefaultImage?: boolean;
         workspaceClass?: string;
         ideSettings?: IDESettings;
-        region?: string;
+        region?: WorkspaceRegion;
     }
     export interface TakeSnapshotOptions {
         workspaceId: string;

@@ -7,7 +7,7 @@
 import dayjs from "dayjs";
 import { PrebuildWithStatus, Project } from "@gitpod/gitpod-protocol";
 import { useEffect, useState } from "react";
-import { useHistory, useParams } from "react-router";
+import { Redirect, useHistory, useParams } from "react-router";
 import Header from "../components/Header";
 import PrebuildLogs from "../components/PrebuildLogs";
 import Spinner from "../icons/Spinner.svg";
@@ -15,9 +15,9 @@ import { getGitpodService, gitpodHostUrl } from "../service/service";
 import { shortCommitMessage } from "./render-utils";
 import { useCurrentProject } from "./project-context";
 
-export default function () {
+export default function PrebuildPage() {
     const history = useHistory();
-    const project = useCurrentProject();
+    const { project, loading } = useCurrentProject();
 
     const { prebuildId } = useParams<{ prebuildId: string }>();
 
@@ -132,6 +132,10 @@ export default function () {
     useEffect(() => {
         document.title = "Prebuild — Gitpod";
     }, []);
+
+    if (!loading && !project) {
+        return <Redirect to={"/projects"} />;
+    }
 
     return (
         <>

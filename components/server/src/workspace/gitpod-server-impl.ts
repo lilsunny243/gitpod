@@ -198,6 +198,8 @@ import {
     WriteOrganizationMetadata,
 } from "../authorization/checks";
 import { reportCentralizedPermsValidation } from "../prometheus-metrics";
+import { RegionService } from "./region-service";
+import { isWorkspaceRegion, WorkspaceRegion } from "@gitpod/gitpod-protocol/lib/workspace-cluster";
 
 // shortcut
 export const traceWI = (ctx: TraceContext, wi: Omit<LogContext, "userId">) => TraceContext.setOWI(ctx, wi); // userId is already taken care of in WebsocketConnectionManager
@@ -747,6 +749,8 @@ export class GitpodServerImpl implements GitpodServerWithTracing, Disposable {
 
         await mayStartPromise;
 
+        options.region = await this.determineWorkspaceRegion(workspace, options.region || "");
+
         // at this point we're about to actually start a new workspace
         const result = await this.workspaceStarter.startWorkspace(
             ctx,
@@ -1184,6 +1188,11 @@ export class GitpodServerImpl implements GitpodServerWithTracing, Disposable {
             const project = CommitContext.is(context)
                 ? await this.projectDB.findProjectByCloneUrl(context.repository.cloneUrl)
                 : undefined;
+
+            //TODO(se) relying on the attribution mechanism is a temporary work around. We will go to explicit passing of organization IDs soon.
+            const attributionId = await this.userService.getWorkspaceUsageAttributionId(user, project?.id);
+            const organizationId = attributionId.kind === "team" ? attributionId.teamId : undefined;
+
             const prebuiltWorkspace = await this.findPrebuiltWorkspace(
                 ctx,
                 user,
@@ -1203,6 +1212,7 @@ export class GitpodServerImpl implements GitpodServerWithTracing, Disposable {
             const workspace = await this.workspaceFactory.createForContext(
                 ctx,
                 user,
+                organizationId,
                 project,
                 context,
                 normalizedContextUrl,
@@ -1216,6 +1226,7 @@ export class GitpodServerImpl implements GitpodServerWithTracing, Disposable {
             }
 
             let projectEnvVarsPromise = this.internalGetProjectEnvVars(workspace.projectId);
+            options.region = await this.determineWorkspaceRegion(workspace, options.region || "");
 
             logContext.workspaceId = workspace.id;
             traceWI(ctx, { workspaceId: workspace.id });
@@ -3522,5 +3533,49 @@ export class GitpodServerImpl implements GitpodServerWithTracing, Disposable {
             default:
                 return new ResponseError(ErrorCodes.INTERNAL_SERVER_ERROR, err.details);
         }
+    }
+
+    private async determineWorkspaceRegion(ws: Workspace, preference: WorkspaceRegion): Promise<WorkspaceRegion> {
+        const guessWorkspaceRegionEnabled = await getExperimentsClientForBackend().getValueAsync(
+            "guessWorkspaceRegion",
+            false,
+            {
+                user: this.user,
+            },
+        );
+
+        const regionLogContext = {
+            requested_region: preference,
+            client_region_from_header: this.clientHeaderFields.clientRegion,
+            experiment_enabled: false,
+            guessed_region: "",
+        };
+
+        let targetRegion = preference;
+        if (!isWorkspaceRegion(preference)) {
+            targetRegion = "";
+        } else {
+            targetRegion = preference;
+        }
+
+        if (guessWorkspaceRegionEnabled) {
+            regionLogContext.experiment_enabled = true;
+
+            if (!preference) {
+                // Attempt to identify the region based on LoadBalancer headers, if there was no explicit choice on the request.
+                // The Client region contains the two letter country code.
+                if (this.clientHeaderFields.clientRegion) {
+                    const countryCode = this.clientHeaderFields.clientRegion;
+
+                    targetRegion = RegionService.countryCodeToNearestWorkspaceRegion(countryCode);
+                    regionLogContext.guessed_region = targetRegion;
+                }
+            }
+        }
+
+        const logCtx = { userId: this.user?.id, workspaceId: ws.id };
+        log.info(logCtx, "[guessWorkspaceRegion] Workspace with region selection", regionLogContext);
+
+        return targetRegion;
     }
 }
