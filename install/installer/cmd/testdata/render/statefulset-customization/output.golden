@@ -3692,7 +3692,6 @@ apiVersion: v1
 data:
   config.json: |-
     {
-      "gpRunImage": "registry.hub.docker.com/gitpod/gp-run:ak-test",
       "supervisorImage": "eu.gcr.io/gitpod-core-dev/build/supervisor:test",
       "ideOptions": {
         "options": {
@@ -3720,7 +3719,7 @@ data:
             "type": "browser",
             "logo": "https://ide.gitpod.example.com/image/ide-logo/vscode.svg",
             "label": "Browser",
-            "image": "eu.gcr.io/gitpod-core-dev/build/ide/code:commit-243178c3f905d5b7df8d67c01244a451f20891ff",
+            "image": "eu.gcr.io/gitpod-core-dev/build/ide/code:commit-b83d82b9ee293b0559f11d09977d0e8e914d73f5",
             "latestImage": "eu.gcr.io/gitpod-core-dev/build/ide/code:nightly",
             "imageLayers": [
               "eu.gcr.io/gitpod-core-dev/build/ide/gitpod-code-web:commit-b513e548113c7cddeb2d12e8e1a20f56245a8224",
@@ -5242,14 +5241,16 @@ data:
             "type": "image"
           }
         ],
-        "remoteSpecProvider": {
-          "addr": "dns:///ws-manager:8080",
-          "tls": {
-            "ca": "/ws-manager-client-tls-certs/ca.crt",
-            "crt": "/ws-manager-client-tls-certs/tls.crt",
-            "key": "/ws-manager-client-tls-certs/tls.key"
+        "remoteSpecProvider": [
+          {
+            "addr": "dns:///ws-manager:8080",
+            "tls": {
+              "ca": "/ws-manager-client-tls-certs/ca.crt",
+              "crt": "/ws-manager-client-tls-certs/tls.crt",
+              "key": "/ws-manager-client-tls-certs/tls.key"
+            }
           }
-        },
+        ],
         "store": "/mnt/cache/registry",
         "requireAuth": false,
         "tls": {
@@ -7752,7 +7753,7 @@ spec:
   template:
     metadata:
       annotations:
-        gitpod.io/checksum_config: 3e7db160db71491d8d16b0423783bf99a0dc293dc723960c9308756bdde69d3b
+        gitpod.io/checksum_config: 8b550110d60404fddff7b9f58346f214466970ebae7927d14398663a2e58e363
       creationTimestamp: null
       labels:
         app: gitpod

@@ -64,6 +64,7 @@ jobs:
 
   build-previewctl:
     name: Build previewctl
+    if: ${{ needs.configuration.outputs.is_main_branch == 'true' || needs.configuration.outputs.preview_enable == 'true' }}
     needs: [configuration]
     concurrency:
       group: ${{ github.head_ref || github.ref }}-build-previewctl
@@ -71,7 +72,7 @@ jobs:
       cancel-in-progress: ${{ needs.configuration.outputs.is_main_branch == 'false' }}
     runs-on: [self-hosted]
     container:
-      image: eu.gcr.io/gitpod-core-dev/dev/dev-environment:mads-leeway-v0.7.3.4
+      image: eu.gcr.io/gitpod-core-dev/dev/dev-environment:kylos101-kubecdl-home.1
     outputs:
       previewctl_hash: ${{ steps.build.outputs.previewctl_hash }}
     steps:
@@ -132,7 +133,7 @@ jobs:
           MYSQL_ROOT_PASSWORD: test
           MYSQL_TCP_PORT: 23306
     container:
-      image: eu.gcr.io/gitpod-core-dev/dev/dev-environment:mads-leeway-v0.7.3.4
+      image: eu.gcr.io/gitpod-core-dev/dev/dev-environment:kylos101-kubecdl-home.1
       env:
         DB_HOST: mysql
     steps:
@@ -216,7 +217,8 @@ jobs:
 
           RESULT=0
           set -x
-          leeway build $PR_LEEWAY_TARGET \
+          # CI=true is a var set by GHA. Unsetting it for the build, as yarn builds treat warnings as errors if that var is set to true
+          CI= leeway build $PR_LEEWAY_TARGET \
             --cache $CACHE \
             $TEST \
             -Dversion=$VERSION \

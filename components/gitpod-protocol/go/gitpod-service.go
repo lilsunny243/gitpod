@@ -13,12 +13,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"sync"
 	"time"
 
 	"github.com/sourcegraph/jsonrpc2"
-	"golang.org/x/xerrors"
 
 	"github.com/sirupsen/logrus"
 )
@@ -65,7 +63,8 @@ type APIInterface interface {
 	ClosePort(ctx context.Context, workspaceID string, port float32) (err error)
 	GetUserStorageResource(ctx context.Context, options *GetUserStorageResourceOptions) (res string, err error)
 	UpdateUserStorageResource(ctx context.Context, options *UpdateUserStorageResourceOptions) (err error)
-	GetEnvVars(ctx context.Context) (res []*UserEnvVarValue, err error)
+	GetWorkspaceEnvVars(ctx context.Context, workspaceID string) (res []*EnvVar, err error)
+	GetEnvVars(ctx context.Context) (res []*EnvVar, err error)
 	SetEnvVar(ctx context.Context, variable *UserEnvVarValue) (err error)
 	DeleteEnvVar(ctx context.Context, variable *UserEnvVarValue) (err error)
 	HasSSHPublicKey(ctx context.Context) (res bool, err error)
@@ -262,7 +261,7 @@ type ConnectToServerOpts struct {
 	Context             context.Context
 	Token               string
 	Cookie              string
-	NoOrigin            bool
+	Origin              string
 	Log                 *logrus.Entry
 	ReconnectionHandler func()
 	CloseHandler        func(error)
@@ -275,22 +274,8 @@ func ConnectToServer(endpoint string, opts ConnectToServerOpts) (*APIoverJSONRPC
 		opts.Context = context.Background()
 	}
 
-	epURL, err := url.Parse(endpoint)
-	if err != nil {
-		return nil, xerrors.Errorf("invalid endpoint URL: %w", err)
-	}
-
 	reqHeader := http.Header{}
-	if !opts.NoOrigin {
-		var protocol string
-		if epURL.Scheme == "wss:" {
-			protocol = "https"
-		} else {
-			protocol = "http"
-		}
-		origin := fmt.Sprintf("%s://%s/", protocol, epURL.Hostname())
-		reqHeader.Set("Origin", origin)
-	}
+	reqHeader.Set("Origin", opts.Origin)
 
 	for k, v := range opts.ExtraHeaders {
 		reqHeader.Set(k, v)
@@ -1128,15 +1113,35 @@ func (gp *APIoverJSONRPC) UpdateUserStorageResource(ctx context.Context, options
 	return
 }
 
-// GetEnvVars calls getEnvVars on the server
-func (gp *APIoverJSONRPC) GetEnvVars(ctx context.Context) (res []*UserEnvVarValue, err error) {
+// GetWorkspaceEnvVars calls GetWorkspaceEnvVars on the server
+func (gp *APIoverJSONRPC) GetWorkspaceEnvVars(ctx context.Context, workspaceID string) (res []*EnvVar, err error) {
 	if gp == nil {
 		err = errNotConnected
 		return
 	}
 	var _params []interface{}
 
-	var result []*UserEnvVarValue
+	_params = append(_params, workspaceID)
+
+	var result []*EnvVar
+	err = gp.C.Call(ctx, "getWorkspaceEnvVars", _params, &result)
+	if err != nil {
+		return
+	}
+	res = result
+
+	return
+}
+
+// GetEnvVars calls getEnvVars on the server
+func (gp *APIoverJSONRPC) GetEnvVars(ctx context.Context) (res []*EnvVar, err error) {
+	if gp == nil {
+		err = errNotConnected
+		return
+	}
+	var _params []interface{}
+
+	var result []*EnvVar
 	err = gp.C.Call(ctx, "getEnvVars", _params, &result)
 	if err != nil {
 		return
@@ -1976,6 +1981,13 @@ type WhitelistedRepository struct {
 	Description string `json:"description,omitempty"`
 	Name        string `json:"name,omitempty"`
 	URL         string `json:"url,omitempty"`
+}
+
+// EnvVar is the EnvVar message type
+type EnvVar struct {
+	ID    string `json:"id,omitempty"`
+	Name  string `json:"name,omitempty"`
+	Value string `json:"value,omitempty"`
 }
 
 // UserEnvVarValue is the UserEnvVarValue message type

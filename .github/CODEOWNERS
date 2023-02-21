@@ -18,6 +18,7 @@
 /components/gitpod-messagebus @gitpod-io/engineering-webapp
 /components/gitpod-protocol @gitpod-io/engineering-webapp
 /components/gitpod-protocol/java @gitpod-io/engineering-ide
+/components/gitpod-protocol/src/typings/globals.ts @gitpod-io/engineering-ide
 /components/ide @gitpod-io/engineering-ide
 /components/ide-metrics @gitpod-io/engineering-ide
 /components/ide-metrics-api @gitpod-io/engineering-ide
@@ -75,7 +76,7 @@
 # Any team can make changes to the experimental package
 /components/public-api/gitpod/experimental @gitpod-io/engineering-webapp
 /components/public-api-server @gitpod-io/engineering-webapp
-/components/registry-facade-api @csweichel @aledbf
+/components/registry-facade-api @gitpod-io/engineering-workspace
 /components/registry-facade @gitpod-io/engineering-workspace
 /components/server @gitpod-io/engineering-webapp
 /components/server/src/ide-service.* @gitpod-io/engineering-ide
@@ -86,7 +87,7 @@
 /components/usage-api @gitpod-io/engineering-webapp
 /components/workspace-rollout-job @gitpod-io/engineering-security-infrastructure-and-delivery @gitpod-io/engineering-workspace
 /components/workspacekit @gitpod-io/engineering-workspace
-/components/ws-daemon-api @aledbf @Furisto
+/components/ws-daemon-api @gitpod-io/engineering-workspace
 /components/ws-daemon @gitpod-io/engineering-workspace
 /components/ws-manager-api @gitpod-io/engineering-workspace
 /components/ws-manager-bridge-api @gitpod-io/engineering-webapp

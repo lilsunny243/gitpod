@@ -45,8 +45,9 @@ const (
 	// TODO(furisto): remove this label once we have moved ws-daemon to a controller setup
 	instanceIDLabel = "gitpod.io/instanceID"
 
-	// gitpodPodFinalizerName is the name of the finalizer we use on pods
-	gitpodPodFinalizerName = "gitpod.io/finalizer"
+	// Grace time until the process in the workspace is properly completed
+	// e.g. dockerd in the workspace may take some time to clean up the overlay directory.
+	gracePeriod = 3 * time.Minute
 )
 
 type startWorkspaceContext struct {
@@ -290,6 +291,10 @@ func createDefiniteWorkspacePod(sctx *startWorkspaceContext) (*corev1.Pod, error
 		"cluster-autoscaler.kubernetes.io/safe-to-evict": "false",
 	}
 
+	for k, v := range sctx.Workspace.Annotations {
+		annotations[k] = v
+	}
+
 	// By default we embue our workspace pods with some tolerance towards pressure taints,
 	// see https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/#taint-based-evictions
 	// for more details. As hope/assume that the pressure might go away in this time.
@@ -385,6 +390,10 @@ func createDefiniteWorkspacePod(sctx *startWorkspaceContext) (*corev1.Pod, error
 								Key:      "gitpod.io/registry-facade_ready_ns_" + sctx.Config.Namespace,
 								Operator: corev1.NodeSelectorOpExists,
 							},
+							{
+								Key:      "gitpod.io/experimental",
+								Operator: corev1.NodeSelectorOpExists,
+							},
 						},
 					},
 				},
@@ -392,13 +401,14 @@ func createDefiniteWorkspacePod(sctx *startWorkspaceContext) (*corev1.Pod, error
 		},
 	}
 
+	graceSec := int64(gracePeriod.Seconds())
 	pod := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        fmt.Sprintf("%s-%s", prefix, sctx.Workspace.Name),
 			Namespace:   sctx.Config.Namespace,
 			Labels:      labels,
 			Annotations: annotations,
-			Finalizers:  []string{gitpodPodFinalizerName},
+			Finalizers:  []string{workspacev1.GitpodFinalizerName},
 		},
 		Spec: corev1.PodSpec{
 			Hostname:                     sctx.Workspace.Spec.Ownership.WorkspaceID,
@@ -418,8 +428,9 @@ func createDefiniteWorkspacePod(sctx *startWorkspaceContext) (*corev1.Pod, error
 			Containers: []corev1.Container{
 				*workspaceContainer,
 			},
-			RestartPolicy: corev1.RestartPolicyNever,
-			Volumes:       volumes,
+			RestartPolicy:                 corev1.RestartPolicyNever,
+			Volumes:                       volumes,
+			TerminationGracePeriodSeconds: &graceSec,
 			Tolerations: []corev1.Toleration{
 				{
 					Key:      "node.kubernetes.io/disk-pressure",
@@ -551,6 +562,14 @@ func createWorkspaceEnvironment(sctx *startWorkspaceContext) ([]corev1.EnvVar, e
 		allRepoRoots[i] = getWorkspaceRelativePath(root)
 	}
 
+	// Can't read the workspace URL from status yet, as the status likely hasn't
+	// been set by the controller yet at this point. Therefore, manually construct
+	// the URL to pass to the container env.
+	wsUrl, err := config.RenderWorkspaceURL(sctx.Config.WorkspaceURLTemplate, sctx.Workspace.Name, sctx.Workspace.Spec.Ownership.WorkspaceID, sctx.Config.GitpodHostURL)
+	if err != nil {
+		return nil, fmt.Errorf("cannot render workspace URL: %w", err)
+	}
+
 	// Envs that start with GITPOD_ are appended to the Terminal environments
 	result := []corev1.EnvVar{}
 	result = append(result, corev1.EnvVar{Name: "GITPOD_REPO_ROOT", Value: allRepoRoots[0]})
@@ -561,7 +580,7 @@ func createWorkspaceEnvironment(sctx *startWorkspaceContext) ([]corev1.EnvVar, e
 	result = append(result, corev1.EnvVar{Name: "GITPOD_THEIA_PORT", Value: strconv.Itoa(int(sctx.IDEPort))})
 	result = append(result, corev1.EnvVar{Name: "THEIA_WORKSPACE_ROOT", Value: getWorkspaceRelativePath(sctx.Workspace.Spec.WorkspaceLocation)})
 	result = append(result, corev1.EnvVar{Name: "GITPOD_HOST", Value: sctx.Config.GitpodHostURL})
-	result = append(result, corev1.EnvVar{Name: "GITPOD_WORKSPACE_URL", Value: sctx.Workspace.Status.URL})
+	result = append(result, corev1.EnvVar{Name: "GITPOD_WORKSPACE_URL", Value: wsUrl})
 	result = append(result, corev1.EnvVar{Name: "GITPOD_WORKSPACE_CLUSTER_HOST", Value: sctx.Config.WorkspaceClusterHost})
 	result = append(result, corev1.EnvVar{Name: "THEIA_SUPERVISOR_ENDPOINT", Value: fmt.Sprintf(":%d", sctx.SupervisorPort)})
 	// TODO(ak) remove THEIA_WEBVIEW_EXTERNAL_ENDPOINT and THEIA_MINI_BROWSER_HOST_PATTERN when Theia is removed
@@ -574,8 +593,17 @@ func createWorkspaceEnvironment(sctx *startWorkspaceContext) ([]corev1.EnvVar, e
 		result = append(result, corev1.EnvVar{Name: "GITPOD_GIT_USER_EMAIL", Value: sctx.Workspace.Spec.Git.Email})
 	}
 
+	// System level env vars
+	for _, e := range sctx.Workspace.Spec.SysEnvVars {
+		env := corev1.EnvVar{
+			Name:  e.Name,
+			Value: e.Value,
+		}
+		result = append(result, env)
+	}
+
 	// User-defined env vars (i.e. those coming from the request)
-	for _, e := range sctx.Workspace.Spec.Envvars {
+	for _, e := range sctx.Workspace.Spec.UserEnvVars {
 		switch e.Name {
 		case "GITPOD_WORKSPACE_CONTEXT",
 			"GITPOD_WORKSPACE_CONTEXT_URL",
@@ -680,6 +708,9 @@ func newStartWorkspaceContext(ctx context.Context, cfg *config.Configuration, ws
 	span, _ := tracing.FromContext(ctx, "newStartWorkspaceContext")
 	defer tracing.FinishSpan(span, &err)
 
+	// Can't read ws.Status yet at this point (to e.g. get the headless status),
+	// as it very likely hasn't been set yet by the controller.
+	isHeadless := ws.Spec.Type != workspacev1.WorkspaceTypeRegular
 	return &startWorkspaceContext{
 		Labels: map[string]string{
 			"app":                  "gitpod",
@@ -688,13 +719,13 @@ func newStartWorkspaceContext(ctx context.Context, cfg *config.Configuration, ws
 			wsk8s.OwnerLabel:       ws.Spec.Ownership.Owner,
 			wsk8s.TypeLabel:        strings.ToLower(string(ws.Spec.Type)),
 			instanceIDLabel:        ws.Name,
-			headlessLabel:          strconv.FormatBool(ws.Status.Headless),
+			headlessLabel:          strconv.FormatBool(isHeadless),
 		},
 		Config:         cfg,
 		Workspace:      ws,
 		IDEPort:        23000,
 		SupervisorPort: 22999,
-		Headless:       ws.Status.Headless,
+		Headless:       isHeadless,
 	}, nil
 }
 

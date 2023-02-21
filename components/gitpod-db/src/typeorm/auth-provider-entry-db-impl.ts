@@ -83,11 +83,17 @@ export class AuthProviderEntryDBImpl implements AuthProviderEntryDB {
         return query.getOne();
     }
 
+    async findById(id: string): Promise<AuthProviderEntry | undefined> {
+        const repo = await this.getAuthProviderRepo();
+        return repo.findOne(id);
+    }
+
     async findByUserId(ownerId: string): Promise<AuthProviderEntry[]> {
         const repo = await this.getAuthProviderRepo();
         const query = repo
             .createQueryBuilder("auth_provider")
             .where(`auth_provider.ownerId = :ownerId`, { ownerId })
+            .andWhere("(auth_provider.organizationId IS NULL OR auth_provider.organizationId = '')")
             .andWhere("auth_provider.deleted != true");
         return query.getMany();
     }

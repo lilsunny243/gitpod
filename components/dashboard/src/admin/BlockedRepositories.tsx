@@ -7,7 +7,7 @@
 import { AdminGetListResult } from "@gitpod/gitpod-protocol";
 import { useEffect, useRef, useState } from "react";
 import { getGitpodService } from "../service/service";
-import { PageWithAdminSubMenu } from "./PageWithAdminSubMenu";
+import { AdminPageHeader } from "./AdminPageHeader";
 import { BlockedRepository } from "@gitpod/gitpod-protocol/lib/blocked-repositories-protocol";
 import ConfirmationModal from "../components/ConfirmationModal";
 import Modal from "../components/Modal";
@@ -15,12 +15,14 @@ import CheckBox from "../components/CheckBox";
 import { ItemFieldContextMenu } from "../components/ItemsList";
 import { ContextMenuEntry } from "../components/ContextMenu";
 import Alert from "../components/Alert";
+import { SpinnerLoader } from "../components/Loader";
+import searchIcon from "../icons/search.svg";
 
 export function BlockedRepositories() {
     return (
-        <PageWithAdminSubMenu title="Blocked Repositories" subtitle="Search and manage all blocked repositories.">
+        <AdminPageHeader title="Admin" subtitle="Configure and manage instance settings.">
             <BlockedRepositoriesList />
-        </PageWithAdminSubMenu>
+        </AdminPageHeader>
     );
 }
 
@@ -99,78 +101,66 @@ export function BlockedRepositoriesList(props: Props) {
 
     return (
         <>
-            {isAddModalVisible && (
-                <AddBlockedRepositoryModal
-                    blockedRepository={currentBlockedRepository}
-                    validate={validate}
-                    save={save}
-                    onClose={() => setAddModalVisible(false)}
-                />
-            )}
-            {isDeleteModalVisible && (
-                <DeleteBlockedRepositoryModal
-                    blockedRepository={currentBlockedRepository}
-                    deleteBlockedRepository={() => deleteBlockedRepository(currentBlockedRepository)}
-                    onClose={() => setDeleteModalVisible(false)}
-                />
-            )}
-            <div className="pt-8 flex">
-                <div className="flex justify-between w-full">
-                    <div className="flex">
-                        <div className="py-4">
+            <div className="app-container">
+                {isAddModalVisible && (
+                    <AddBlockedRepositoryModal
+                        blockedRepository={currentBlockedRepository}
+                        validate={validate}
+                        save={save}
+                        onClose={() => setAddModalVisible(false)}
+                    />
+                )}
+                {isDeleteModalVisible && (
+                    <DeleteBlockedRepositoryModal
+                        blockedRepository={currentBlockedRepository}
+                        deleteBlockedRepository={() => deleteBlockedRepository(currentBlockedRepository)}
+                        onClose={() => setDeleteModalVisible(false)}
+                    />
+                )}
+                <div className="pb-3 mt-3 flex">
+                    <div className="flex justify-between w-full">
+                        <div className="flex relative h-10 my-auto">
                             {searching ? (
-                                <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path
-                                        fill="#A8A29E"
-                                        d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z"
-                                    >
-                                        <animateTransform
-                                            attributeName="transform"
-                                            type="rotate"
-                                            dur="0.75s"
-                                            values="0 12 12;360 12 12"
-                                            repeatCount="indefinite"
-                                        />
-                                    </path>
-                                </svg>
+                                <span className="filter-grayscale absolute top-3 left-3">
+                                    <SpinnerLoader small={true} />
+                                </span>
                             ) : (
-                                <svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path
-                                        fillRule="evenodd"
-                                        clipRule="evenodd"
-                                        d="M6 2a4 4 0 100 8 4 4 0 000-8zM0 6a6 6 0 1110.89 3.477l4.817 4.816a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 010 6z"
-                                        fill="#A8A29E"
-                                    />
-                                </svg>
+                                <img
+                                    src={searchIcon}
+                                    title="Search"
+                                    className="filter-grayscale absolute top-3 left-3"
+                                    alt="search icon"
+                                />
                             )}
+                            <input
+                                className="w-64 pl-9 border-0"
+                                type="search"
+                                placeholder="Search by URL RegEx"
+                                onKeyDown={(ke) => ke.key === "Enter" && search()}
+                                onChange={(v) => {
+                                    setQueryTerm(v.target.value.trim());
+                                }}
+                            />
                         </div>
-                        <input
-                            type="search"
-                            placeholder="Search by URL RegEx"
-                            onKeyDown={(ke) => ke.key === "Enter" && search()}
-                            onChange={(v) => {
-                                setQueryTerm(v.target.value.trim());
-                            }}
-                        />
-                    </div>
-                    <div className="flex space-x-2">
-                        <button onClick={add}>New Blocked Repository</button>
+                        <div className="flex space-x-2">
+                            <button onClick={add}>New Blocked Repository</button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <Alert type={"info"} closable={false} showIcon={true} className="flex rounded p-2 mb-2 w-full">
-                Search entries by their repository URL <abbr title="regular expression">RegEx</abbr>.
-            </Alert>
-            <div className="flex flex-col space-y-2">
-                <div className="px-6 py-3 flex justify-between text-sm text-gray-400 border-t border-b border-gray-200 dark:border-gray-800 mb-2">
-                    <div className="w-9/12">Repository URL (RegEx)</div>
-                    <div className="w-1/12">Block Users</div>
-                    <div className="w-1/12"></div>
+                <Alert type={"info"} closable={false} showIcon={true} className="flex rounded p-2 mb-2 w-full">
+                    Search entries by their repository URL <abbr title="regular expression">RegEx</abbr>.
+                </Alert>
+                <div className="flex flex-col space-y-2">
+                    <div className="px-6 py-3 flex justify-between text-sm text-gray-400 border-t border-b border-gray-200 dark:border-gray-800 mb-2">
+                        <div className="w-9/12">Repository URL (RegEx)</div>
+                        <div className="w-1/12">Block Users</div>
+                        <div className="w-1/12"></div>
+                    </div>
+                    {searchResult.rows.map((br) => (
+                        <BlockedRepositoryEntry br={br} confirmedDelete={confirmDeleteBlockedRepository} />
+                    ))}
                 </div>
-                {searchResult.rows.map((br) => (
-                    <BlockedRepositoryEntry br={br} confirmedDelete={confirmDeleteBlockedRepository} />
-                ))}
             </div>
         </>
     );

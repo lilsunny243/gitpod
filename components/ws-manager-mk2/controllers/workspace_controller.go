@@ -162,10 +162,18 @@ func (r *WorkspaceReconciler) actOnStatus(ctx context.Context, workspace *worksp
 			r.metrics.rememberWorkspace(workspace)
 
 		case workspace.Status.Phase == workspacev1.WorkspacePhaseStopped:
-			err := r.Client.Delete(ctx, workspace)
-			if err != nil {
-				return ctrl.Result{Requeue: true}, err
+			// Done stopping workspace - remove finalizer.
+			if controllerutil.ContainsFinalizer(workspace, workspacev1.GitpodFinalizerName) {
+				controllerutil.RemoveFinalizer(workspace, workspacev1.GitpodFinalizerName)
+				if err := r.Update(ctx, workspace); err != nil {
+					return ctrl.Result{}, client.IgnoreNotFound(err)
+				}
 			}
+
+			// Workspace might have already been in a deleting state,
+			// but not guaranteed, so try deleting anyway.
+			err := r.Client.Delete(ctx, workspace)
+			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 
 		return ctrl.Result{}, nil
@@ -189,7 +197,16 @@ func (r *WorkspaceReconciler) actOnStatus(ctx context.Context, workspace *worksp
 
 	// if the pod was stopped by request, delete it
 	case wsk8s.ConditionPresentAndTrue(workspace.Status.Conditions, string(workspacev1.WorkspaceConditionStoppedByRequest)) && !isPodBeingDeleted(pod):
-		err := r.Client.Delete(ctx, pod)
+		var gracePeriodSeconds *int64
+		if c := wsk8s.GetCondition(workspace.Status.Conditions, string(workspacev1.WorkspaceConditionStoppedByRequest)); c != nil {
+			if dt, err := time.ParseDuration(c.Message); err == nil {
+				s := int64(dt.Seconds())
+				gracePeriodSeconds = &s
+			}
+		}
+		err := r.Client.Delete(ctx, pod, &client.DeleteOptions{
+			GracePeriodSeconds: gracePeriodSeconds,
+		})
 		if errors.IsNotFound(err) {
 			// pod is gone - nothing to do here
 		} else {
@@ -214,10 +231,20 @@ func (r *WorkspaceReconciler) actOnStatus(ctx context.Context, workspace *worksp
 			return ctrl.Result{Requeue: true}, err
 		}
 
+	case isWorkspaceBeingDeleted(workspace) && !isPodBeingDeleted(pod):
+		// Workspace was requested to be deleted, propagate by deleting the Pod.
+		// The Pod deletion will then trigger workspace disposal steps.
+		err := r.Client.Delete(ctx, pod)
+		if errors.IsNotFound(err) {
+			// pod is gone - nothing to do here
+		} else {
+			return ctrl.Result{Requeue: true}, err
+		}
+
 	// we've disposed already - try to remove the finalizer and call it a day
 	case workspace.Status.Phase == workspacev1.WorkspacePhaseStopped:
-		hadFinalizer := controllerutil.ContainsFinalizer(pod, gitpodPodFinalizerName)
-		controllerutil.RemoveFinalizer(pod, gitpodPodFinalizerName)
+		hadFinalizer := controllerutil.ContainsFinalizer(pod, workspacev1.GitpodFinalizerName)
+		controllerutil.RemoveFinalizer(pod, workspacev1.GitpodFinalizerName)
 		if err := r.Client.Update(ctx, pod); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to remove gitpod finalizer: %w", err)
 		}

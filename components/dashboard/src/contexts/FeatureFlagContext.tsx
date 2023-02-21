@@ -15,6 +15,7 @@ interface FeatureFlagConfig {
 }
 
 const FeatureFlagContext = createContext<{
+    startWithOptions: boolean;
     showUsageView: boolean;
     isUsageBasedBillingEnabled: boolean;
     showUseLastSuccessfulPrebuild: boolean;
@@ -22,7 +23,9 @@ const FeatureFlagContext = createContext<{
     enablePersonalAccessTokens: boolean;
     oidcServiceEnabled: boolean;
     orgGitAuthProviders: boolean;
+    switchToPAYG: boolean;
 }>({
+    startWithOptions: false,
     showUsageView: false,
     isUsageBasedBillingEnabled: false,
     showUseLastSuccessfulPrebuild: false,
@@ -30,6 +33,7 @@ const FeatureFlagContext = createContext<{
     enablePersonalAccessTokens: false,
     oidcServiceEnabled: false,
     orgGitAuthProviders: false,
+    switchToPAYG: false,
 });
 
 const FeatureFlagContextProvider: React.FC = ({ children }) => {
@@ -37,6 +41,7 @@ const FeatureFlagContextProvider: React.FC = ({ children }) => {
     const teams = useTeams();
     const { project } = useContext(ProjectContext);
     const team = useCurrentTeam();
+    const [startWithOptions, setStartWithOptions] = useState<boolean>(false);
     const [showUsageView, setShowUsageView] = useState<boolean>(false);
     const [isUsageBasedBillingEnabled, setIsUsageBasedBillingEnabled] = useState<boolean>(false);
     const [showUseLastSuccessfulPrebuild, setShowUseLastSuccessfulPrebuild] = useState<boolean>(false);
@@ -44,11 +49,13 @@ const FeatureFlagContextProvider: React.FC = ({ children }) => {
     const [usePublicApiWorkspacesService, setUsePublicApiWorkspacesService] = useState<boolean>(false);
     const [oidcServiceEnabled, setOidcServiceEnabled] = useState<boolean>(false);
     const [orgGitAuthProviders, setOrgGitAuthProviders] = useState<boolean>(false);
+    const [switchToPAYG, setSwitchToPAYG] = useState<boolean>(false);
 
     useEffect(() => {
         if (!user) return;
         (async () => {
             const featureFlags: FeatureFlagConfig = {
+                start_with_options: { defaultValue: false, setter: setStartWithOptions },
                 usage_view: { defaultValue: false, setter: setShowUsageView },
                 isUsageBasedBillingEnabled: { defaultValue: false, setter: setIsUsageBasedBillingEnabled },
                 showUseLastSuccessfulPrebuild: { defaultValue: false, setter: setShowUseLastSuccessfulPrebuild },
@@ -59,6 +66,7 @@ const FeatureFlagContextProvider: React.FC = ({ children }) => {
                 },
                 oidcServiceEnabled: { defaultValue: false, setter: setOidcServiceEnabled },
                 orgGitAuthProviders: { defaultValue: false, setter: setOrgGitAuthProviders },
+                switchToPAYG: { defaultValue: false, setter: setSwitchToPAYG },
             };
 
             for (const [flagName, config] of Object.entries(featureFlags)) {
@@ -98,6 +106,7 @@ const FeatureFlagContextProvider: React.FC = ({ children }) => {
     return (
         <FeatureFlagContext.Provider
             value={{
+                startWithOptions,
                 showUsageView,
                 isUsageBasedBillingEnabled,
                 showUseLastSuccessfulPrebuild,
@@ -105,6 +114,7 @@ const FeatureFlagContextProvider: React.FC = ({ children }) => {
                 usePublicApiWorkspacesService,
                 oidcServiceEnabled,
                 orgGitAuthProviders,
+                switchToPAYG,
             }}
         >
             {children}

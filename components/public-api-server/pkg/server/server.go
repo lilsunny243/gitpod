@@ -28,6 +28,7 @@ import (
 	"github.com/gitpod-io/gitpod/public-api-server/pkg/auth"
 	"github.com/gitpod-io/gitpod/public-api-server/pkg/billingservice"
 	"github.com/gitpod-io/gitpod/public-api-server/pkg/oidc"
+	"github.com/gitpod-io/gitpod/public-api-server/pkg/origin"
 	"github.com/gitpod-io/gitpod/public-api-server/pkg/proxy"
 	"github.com/gitpod-io/gitpod/public-api-server/pkg/webhooks"
 	"github.com/sirupsen/logrus"
@@ -75,11 +76,13 @@ func Start(logger *logrus.Entry, version string, cfg *config.Configuration) erro
 		}
 	}
 
+	var stateJWT *oidc.StateJWT
 	if cfg.OIDCClientJWTSigningSecretPath != "" {
-		_, err := readSecretFromFile(cfg.OIDCClientJWTSigningSecretPath)
+		oidcClientJWTSigningSecret, err := readSecretFromFile(cfg.OIDCClientJWTSigningSecretPath)
 		if err != nil {
 			return fmt.Errorf("failed to read JWT signing secret for OIDC flows: %w", err)
 		}
+		stateJWT = oidc.NewStateJWT([]byte(oidcClientJWTSigningSecret))
 	} else {
 		log.Info("No JWT signing secret for OIDC flows is configured.")
 	}
@@ -109,7 +112,7 @@ func Start(logger *logrus.Entry, version string, cfg *config.Configuration) erro
 
 	srv.HTTPMux().Handle("/stripe/invoices/webhook", handlers.ContentTypeHandler(stripeWebhookHandler, "application/json"))
 
-	oidcService := oidc.NewService(cfg.SessionServiceAddress, dbConn, cipherSet)
+	oidcService := oidc.NewService(cfg.SessionServiceAddress, dbConn, cipherSet, stateJWT)
 
 	if registerErr := register(srv, &registerDependencies{
 		connPool:    connPool,
@@ -154,6 +157,7 @@ func register(srv *baseserver.Server, deps *registerDependencies) error {
 			NewMetricsInterceptor(connectMetrics),
 			NewLogInterceptor(log.Log),
 			auth.NewServerInterceptor(),
+			origin.NewInterceptor(),
 		),
 	}
 

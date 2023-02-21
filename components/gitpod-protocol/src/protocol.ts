@@ -8,6 +8,7 @@ import { WorkspaceInstance, PortVisibility } from "./workspace-instance";
 import { RoleOrPermission } from "./permission";
 import { Project } from "./teams-projects-protocol";
 import { createHash } from "crypto";
+import { AttributionId } from "./attribution";
 
 export interface UserInfo {
     name?: string;
@@ -178,6 +179,17 @@ export namespace User {
         return user;
     }
 
+    export function getDefaultAttributionId(user: User): AttributionId {
+        if (user.usageAttributionId) {
+            const result = AttributionId.parse(user.usageAttributionId);
+            if (!result) {
+                throw new Error("Invalid attribution ID: " + user.usageAttributionId);
+            }
+            return result;
+        }
+        return AttributionId.create(user);
+    }
+
     // The actual Profile of a User
     export interface Profile {
         name: string;
@@ -242,6 +254,16 @@ export interface ProfileDetails {
     companyName?: string;
     // the user's email
     emailAddress?: string;
+    // the user's company website
+    companyWebsite?: string;
+    // type of role user has in their job
+    jobRole?: string;
+    // freeform entry for job role user works in (when jobRole is "other")
+    jobRoleOther?: string;
+    // what user hopes to accomplish when they signed up
+    signupGoals?: string;
+    // freeform entry for signup goals (when signupGoals is "other")
+    signupGoalsOther?: string;
 }
 
 export interface EmailNotificationSettings {
@@ -310,6 +332,8 @@ export namespace NamedWorkspaceFeatureFlag {
         return WORKSPACE_PERSISTED_FEATTURE_FLAGS.includes(ff);
     }
 }
+
+export type EnvVar = UserEnvVar | ProjectEnvVarWithValue | EnvVarWithValue;
 
 export interface EnvVarWithValue {
     name: string;
@@ -830,6 +854,7 @@ export interface WorkspaceConfig {
     vscode?: VSCodeConfig;
     jetbrains?: JetBrainsConfig;
     coreDump?: CoreDumpConfig;
+    ideCredentials?: string;
 
     /** deprecated. Enabled by default **/
     experimentalNetwork?: boolean;
@@ -1404,6 +1429,7 @@ export interface AuthProviderInfo {
     readonly authProviderType: string;
     readonly host: string;
     readonly ownerId?: string;
+    readonly organizationId?: string;
     readonly verified: boolean;
     readonly isReadonly?: boolean;
     readonly hiddenOnDashboard?: boolean;

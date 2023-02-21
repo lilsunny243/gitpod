@@ -21,6 +21,7 @@ import exclamation from "../images/exclamation.svg";
 import ErrorMessage from "../components/ErrorMessage";
 import Spinner from "../icons/Spinner.svg";
 import { useRefreshProjects } from "../data/projects/list-projects-query";
+import { projectsPathNew } from "./projects.routes";
 
 export default function NewProject() {
     const currentTeam = useCurrentTeam();
@@ -358,7 +359,7 @@ export default function NewProject() {
                             </div>
                         </ContextMenu>
                         {showSearchInput && (
-                            <div className="w-full relative ">
+                            <div className="w-full relative h-10 my-auto">
                                 <img
                                     src={search}
                                     title="Search"
@@ -367,7 +368,7 @@ export default function NewProject() {
                                 />
                                 <input
                                     className="w-96 pl-10 border-0"
-                                    type="text"
+                                    type="search"
                                     placeholder="Search Repositories"
                                     value={repoSearchFilter}
                                     onChange={(e) => setRepoSearchFilter(e.target.value)}
@@ -625,7 +626,7 @@ function GitProviders(props: {
 
 async function openReconfigureWindow(params: { account?: string; onSuccess: (p: any) => void }) {
     const { account, onSuccess } = params;
-    const state = btoa(JSON.stringify({ from: "/reconfigure", next: "/new" }));
+    const state = btoa(JSON.stringify({ from: "/reconfigure", next: projectsPathNew }));
     const url = gitpodHostUrl
         .withApi({
             pathname: "/apps/github/reconfigure",

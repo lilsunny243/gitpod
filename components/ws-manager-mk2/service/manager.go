@@ -21,9 +21,11 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/gitpod-io/gitpod/common-go/kubernetes"
 	wsk8s "github.com/gitpod-io/gitpod/common-go/kubernetes"
 	"github.com/gitpod-io/gitpod/common-go/log"
 	"github.com/gitpod-io/gitpod/common-go/tracing"
+	"github.com/gitpod-io/gitpod/common-go/util"
 	"github.com/gitpod-io/gitpod/ws-manager-mk2/pkg/activity"
 	"github.com/gitpod-io/gitpod/ws-manager/api"
 	wsmanapi "github.com/gitpod-io/gitpod/ws-manager/api"
@@ -41,6 +43,14 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+)
+
+const (
+	// stopWorkspaceNormallyGracePeriod is the grace period we use when stopping a pod with StopWorkspaceNormally policy
+	stopWorkspaceNormallyGracePeriod = 30 * time.Second
+	// stopWorkspaceImmediatelyGracePeriod is the grace period we use when stopping a pod as soon as possbile
+	stopWorkspaceImmediatelyGracePeriod = 1 * time.Second
 )
 
 func NewWorkspaceManagerServer(clnt client.Client, cfg *config.Configuration, reg prometheus.Registerer, activity *activity.WorkspaceActivity) *WorkspaceManagerServer {
@@ -104,19 +114,8 @@ func (wsm *WorkspaceManagerServer) StartWorkspace(ctx context.Context, req *wsma
 		return nil, status.Errorf(codes.InvalidArgument, "cannot serialise content initializer: %v", err)
 	}
 
-	envvars := make([]corev1.EnvVar, 0, len(req.Spec.Envvars))
-	for _, e := range req.Spec.Envvars {
-		env := corev1.EnvVar{Name: e.Name, Value: e.Value}
-		if len(e.Value) == 0 && e.Secret != nil {
-			env.ValueFrom = &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{Name: e.Secret.SecretName},
-					Key:                  e.Secret.Key,
-				},
-			}
-		}
-		envvars = append(envvars, env)
-	}
+	userEnvVars := setEnvironment(req.Spec.Envvars)
+	sysEnvVars := setEnvironment(req.Spec.SysEnvvars)
 
 	var git *workspacev1.GitSpec
 	if req.Spec.Git != nil {
@@ -157,6 +156,38 @@ func (wsm *WorkspaceManagerServer) StartWorkspace(ctx context.Context, req *wsma
 		})
 	}
 
+	class, ok := wsm.Config.WorkspaceClasses[req.Spec.Class]
+	if !ok {
+		return nil, status.Errorf(codes.InvalidArgument, "workspace class \"%s\" is unknown", req.Spec.Class)
+	}
+
+	annotations := make(map[string]string)
+	for k, v := range req.Metadata.Annotations {
+		annotations[k] = v
+	}
+
+	for _, feature := range req.Spec.FeatureFlags {
+		switch feature {
+		case api.WorkspaceFeatureFlag_WORKSPACE_CLASS_LIMITING:
+			limits := class.Container.Limits
+			if limits != nil && limits.CPU != nil {
+				if limits.CPU.MinLimit != "" {
+					annotations[kubernetes.WorkspaceCpuMinLimitAnnotation] = limits.CPU.MinLimit
+				}
+
+				if limits.CPU.BurstLimit != "" {
+					annotations[kubernetes.WorkspaceCpuBurstLimitAnnotation] = limits.CPU.BurstLimit
+				}
+			}
+
+		case api.WorkspaceFeatureFlag_WORKSPACE_CONNECTION_LIMITING:
+			annotations[kubernetes.WorkspaceNetConnLimitAnnotation] = util.BooleanTrueString
+
+		case api.WorkspaceFeatureFlag_WORKSPACE_PSI:
+			annotations[kubernetes.WorkspacePressureStallInfoAnnotation] = util.BooleanTrueString
+		}
+	}
+
 	ws := workspacev1.Workspace{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: workspacev1.GroupVersion.String(),
@@ -164,7 +195,7 @@ func (wsm *WorkspaceManagerServer) StartWorkspace(ctx context.Context, req *wsma
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        req.Id,
-			Annotations: req.Metadata.Annotations,
+			Annotations: annotations,
 			Namespace:   wsm.Config.Namespace,
 			Labels: map[string]string{
 				wsk8s.WorkspaceIDLabel: req.Metadata.MetaId,
@@ -189,7 +220,8 @@ func (wsm *WorkspaceManagerServer) StartWorkspace(ctx context.Context, req *wsma
 				},
 			},
 			Initializer:       initializer,
-			Envvars:           envvars,
+			UserEnvVars:       userEnvVars,
+			SysEnvVars:        sysEnvVars,
 			WorkspaceLocation: req.Spec.WorkspaceLocation,
 			Git:               git,
 			Timeout: workspacev1.TimeoutSpec{
@@ -201,6 +233,7 @@ func (wsm *WorkspaceManagerServer) StartWorkspace(ctx context.Context, req *wsma
 			Ports: ports,
 		},
 	}
+	controllerutil.AddFinalizer(&ws, workspacev1.GitpodFinalizerName)
 
 	wsm.metrics.recordWorkspaceStart(&ws)
 	err = wsm.Client.Create(ctx, &ws)
@@ -232,12 +265,39 @@ func (wsm *WorkspaceManagerServer) StartWorkspace(ctx context.Context, req *wsma
 	}, nil
 }
 
-func (wsm *WorkspaceManagerServer) StopWorkspace(ctx context.Context, req *wsmanapi.StopWorkspaceRequest) (*wsmanapi.StopWorkspaceResponse, error) {
-	err := wsm.modifyWorkspace(ctx, req.Id, true, func(ws *workspacev1.Workspace) error {
+func (wsm *WorkspaceManagerServer) StopWorkspace(ctx context.Context, req *wsmanapi.StopWorkspaceRequest) (res *wsmanapi.StopWorkspaceResponse, err error) {
+	owi := log.OWI("", "", req.Id)
+	span, ctx := tracing.FromContext(ctx, "StopWorkspace")
+	tracing.LogRequestSafe(span, req)
+	tracing.ApplyOWI(span, owi)
+	defer tracing.FinishSpan(span, &err)
+
+	gracePeriod := stopWorkspaceNormallyGracePeriod
+	if req.Policy == api.StopWorkspacePolicy_IMMEDIATELY {
+		span.LogKV("policy", "immediately")
+		gracePeriod = stopWorkspaceImmediatelyGracePeriod
+	} else if req.Policy == api.StopWorkspacePolicy_ABORT {
+		span.LogKV("policy", "abort")
+		gracePeriod = stopWorkspaceImmediatelyGracePeriod
+		if err = wsm.modifyWorkspace(ctx, req.Id, true, func(ws *workspacev1.Workspace) error {
+			ws.Status.Conditions = wsk8s.AddUniqueCondition(ws.Status.Conditions, metav1.Condition{
+				Type:               string(workspacev1.WorkspaceConditionAborted),
+				Status:             metav1.ConditionTrue,
+				Reason:             "StopWorkspaceRequest",
+				LastTransitionTime: metav1.Now(),
+			})
+			return nil
+		}); err != nil {
+			log.Error(err, "failed to add Aborted condition to workspace")
+		}
+	}
+	err = wsm.modifyWorkspace(ctx, req.Id, true, func(ws *workspacev1.Workspace) error {
 		ws.Status.Conditions = wsk8s.AddUniqueCondition(ws.Status.Conditions, metav1.Condition{
 			Type:               string(workspacev1.WorkspaceConditionStoppedByRequest),
 			Status:             metav1.ConditionTrue,
 			LastTransitionTime: metav1.Now(),
+			Message:            gracePeriod.String(),
+			Reason:             "StopWorkspaceRequest",
 		})
 		return nil
 	})
@@ -575,6 +635,24 @@ func areValidFeatureFlags(value interface{}) error {
 	return nil
 }
 
+func setEnvironment(envs []*wsmanapi.EnvironmentVariable) []corev1.EnvVar {
+	envVars := make([]corev1.EnvVar, 0, len(envs))
+	for _, e := range envs {
+		env := corev1.EnvVar{Name: e.Name, Value: e.Value}
+		if len(e.Value) == 0 && e.Secret != nil {
+			env.ValueFrom = &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: e.Secret.SecretName},
+					Key:                  e.Secret.Key,
+				},
+			}
+		}
+		envVars = append(envVars, env)
+	}
+
+	return envVars
+}
+
 func extractWorkspaceStatus(ws *workspacev1.Workspace) *wsmanapi.WorkspaceStatus {
 	version, _ := strconv.ParseUint(ws.ResourceVersion, 10, 64)
 
@@ -661,13 +739,15 @@ func extractWorkspaceStatus(ws *workspacev1.Workspace) *wsmanapi.WorkspaceStatus
 		},
 		Phase: phase,
 		Conditions: &wsmanapi.WorkspaceConditions{
-			Failed:             getConditionMessageIfTrue(ws.Status.Conditions, string(workspacev1.WorkspaceConditionFailed)),
-			Timeout:            getConditionMessageIfTrue(ws.Status.Conditions, string(workspacev1.WorkspaceConditionTimeout)),
-			Snapshot:           ws.Status.Snapshot,
-			Deployed:           convertCondition(ws.Status.Conditions, string(workspacev1.WorkspaceConditionDeployed)),
-			FirstUserActivity:  firstUserActivity,
-			HeadlessTaskFailed: getConditionMessageIfTrue(ws.Status.Conditions, string(workspacev1.WorkspaceConditionsHeadlessTaskFailed)),
-			StoppedByRequest:   convertCondition(ws.Status.Conditions, string(workspacev1.WorkspaceConditionStoppedByRequest)),
+			Failed:              getConditionMessageIfTrue(ws.Status.Conditions, string(workspacev1.WorkspaceConditionFailed)),
+			Timeout:             getConditionMessageIfTrue(ws.Status.Conditions, string(workspacev1.WorkspaceConditionTimeout)),
+			Snapshot:            ws.Status.Snapshot,
+			Deployed:            convertCondition(ws.Status.Conditions, string(workspacev1.WorkspaceConditionDeployed)),
+			FirstUserActivity:   firstUserActivity,
+			HeadlessTaskFailed:  getConditionMessageIfTrue(ws.Status.Conditions, string(workspacev1.WorkspaceConditionsHeadlessTaskFailed)),
+			StoppedByRequest:    convertCondition(ws.Status.Conditions, string(workspacev1.WorkspaceConditionStoppedByRequest)),
+			FinalBackupComplete: convertCondition(ws.Status.Conditions, string(workspacev1.WorkspaceConditionBackupComplete)),
+			Aborted:             convertCondition(ws.Status.Conditions, string(workspacev1.WorkspaceConditionAborted)),
 		},
 		Runtime: runtime,
 		Auth: &wsmanapi.WorkspaceAuthentication{
@@ -688,14 +768,7 @@ func getConditionMessageIfTrue(conds []metav1.Condition, tpe string) string {
 }
 
 func convertCondition(conds []metav1.Condition, tpe string) wsmanapi.WorkspaceConditionBool {
-	var res *metav1.Condition
-	for _, c := range conds {
-		if c.Type == tpe {
-			res = &c
-			break
-		}
-	}
-
+	res := wsk8s.GetCondition(conds, tpe)
 	if res == nil {
 		return wsmanapi.WorkspaceConditionBool_EMPTY
 	}

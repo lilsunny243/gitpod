@@ -6,7 +6,6 @@ package controllers
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/aws/smithy-go/ptr"
 	wsk8s "github.com/gitpod-io/gitpod/common-go/kubernetes"
@@ -27,19 +26,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-const (
-	timeout  = time.Second * 20
-	duration = time.Second * 2
-	interval = time.Millisecond * 250
-)
-
 var _ = Describe("WorkspaceController", func() {
 	Context("with regular workspaces", func() {
 		It("should handle successful workspace creation and stop request", func() {
 			ws := newWorkspace(uuid.NewString(), "default")
 			pod := createWorkspaceExpectPod(ws)
 
-			Expect(controllerutil.ContainsFinalizer(pod, gitpodPodFinalizerName)).To(BeTrue())
+			Expect(controllerutil.ContainsFinalizer(pod, workspacev1.GitpodFinalizerName)).To(BeTrue())
 
 			By("controller updating the pod starts value")
 			Eventually(func() (int, error) {
@@ -51,7 +44,7 @@ var _ = Describe("WorkspaceController", func() {
 			}, timeout, interval).Should(Equal(1))
 
 			// Deployed condition should be added.
-			expectConditionEventually(ws, string(workspacev1.WorkspaceConditionDeployed), string(metav1.ConditionTrue), "")
+			expectConditionEventually(ws, string(workspacev1.WorkspaceConditionDeployed), metav1.ConditionTrue, "")
 
 			// Runtime status should be set.
 			expectRuntimeStatus(ws, pod)
@@ -83,7 +76,7 @@ var _ = Describe("WorkspaceController", func() {
 			pod := createWorkspaceExpectPod(ws)
 
 			By("adding ws init failure condition")
-			updateObjWithRetries(ws, true, func(ws *workspacev1.Workspace) {
+			updateObjWithRetries(k8sClient, ws, true, func(ws *workspacev1.Workspace) {
 				ws.Status.Conditions = wsk8s.AddUniqueCondition(ws.Status.Conditions, metav1.Condition{
 					Type:               string(workspacev1.WorkspaceConditionContentReady),
 					Status:             metav1.ConditionFalse,
@@ -116,7 +109,7 @@ var _ = Describe("WorkspaceController", func() {
 			pod := createWorkspaceExpectPod(ws)
 
 			// Update Pod with failed exit status.
-			updateObjWithRetries(pod, true, func(pod *corev1.Pod) {
+			updateObjWithRetries(k8sClient, pod, true, func(pod *corev1.Pod) {
 				pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, corev1.ContainerStatus{
 					LastTerminationState: corev1.ContainerState{
 						Terminated: &corev1.ContainerStateTerminated{
@@ -128,7 +121,60 @@ var _ = Describe("WorkspaceController", func() {
 			})
 
 			// Controller should detect container exit and add Failed condition.
-			expectConditionEventually(ws, string(workspacev1.WorkspaceConditionFailed), string(metav1.ConditionTrue), "")
+			expectConditionEventually(ws, string(workspacev1.WorkspaceConditionFailed), metav1.ConditionTrue, "")
+
+			expectFinalizerAndMarkBackupCompleted(ws, pod)
+
+			expectWorkspaceCleanup(ws, pod)
+		})
+
+		It("should clean up timed out workspaces", func() {
+			ws := newWorkspace(uuid.NewString(), "default")
+			pod := createWorkspaceExpectPod(ws)
+
+			By("adding Timeout condition")
+			updateObjWithRetries(k8sClient, ws, true, func(ws *workspacev1.Workspace) {
+				ws.Status.Conditions = wsk8s.AddUniqueCondition(ws.Status.Conditions, metav1.Condition{
+					Type:               string(workspacev1.WorkspaceConditionTimeout),
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+				})
+			})
+
+			expectFinalizerAndMarkBackupCompleted(ws, pod)
+
+			expectWorkspaceCleanup(ws, pod)
+		})
+
+		It("should handle workspace abort", func() {
+			ws := newWorkspace(uuid.NewString(), "default")
+			pod := createWorkspaceExpectPod(ws)
+
+			// Update Pod with stop and abort conditions.
+			updateObjWithRetries(k8sClient, ws, true, func(ws *workspacev1.Workspace) {
+				ws.Status.Conditions = wsk8s.AddUniqueCondition(ws.Status.Conditions, metav1.Condition{
+					Type:               string(workspacev1.WorkspaceConditionAborted),
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+				})
+				ws.Status.Conditions = wsk8s.AddUniqueCondition(ws.Status.Conditions, metav1.Condition{
+					Type:               string(workspacev1.WorkspaceConditionStoppedByRequest),
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+				})
+			})
+
+			// Expect cleanup without a backup.
+			expectWorkspaceCleanup(ws, pod)
+		})
+
+		It("deleting workspace resource should gracefully clean up", func() {
+			ws := newWorkspace(uuid.NewString(), "default")
+			pod := createWorkspaceExpectPod(ws)
+
+			Expect(k8sClient.Delete(ctx, ws)).To(Succeed())
+
+			expectPhaseEventually(ws, workspacev1.WorkspacePhaseStopping)
 
 			expectFinalizerAndMarkBackupCompleted(ws, pod)
 
@@ -165,7 +211,7 @@ var _ = Describe("WorkspaceController", func() {
 
 		It("should cleanup on successful exit", func() {
 			// Manually update pod phase & delete pod to simulate pod exiting successfully.
-			updateObjWithRetries(pod, true, func(p *corev1.Pod) {
+			updateObjWithRetries(k8sClient, pod, true, func(p *corev1.Pod) {
 				p.Status.Phase = corev1.PodSucceeded
 			})
 			Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
@@ -176,7 +222,7 @@ var _ = Describe("WorkspaceController", func() {
 
 		It("should cleanup on failed exit", func() {
 			// Manually update pod phase & delete pod to simulate pod exiting with failure.
-			updateObjWithRetries(pod, true, func(p *corev1.Pod) {
+			updateObjWithRetries(k8sClient, pod, true, func(p *corev1.Pod) {
 				p.Status.Phase = corev1.PodFailed
 			})
 			Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
@@ -187,18 +233,19 @@ var _ = Describe("WorkspaceController", func() {
 	})
 })
 
-func updateObjWithRetries[O client.Object](obj O, updateStatus bool, update func(obj O)) {
+func updateObjWithRetries[O client.Object](c client.Client, obj O, updateStatus bool, update func(obj O)) {
+	GinkgoHelper()
 	Eventually(func() error {
 		var err error
-		if err = k8sClient.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, obj); err != nil {
+		if err = c.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, obj); err != nil {
 			return err
 		}
 		// Apply update.
 		update(obj)
 		if updateStatus {
-			err = k8sClient.Status().Update(ctx, obj)
+			err = c.Status().Update(ctx, obj)
 		} else {
-			err = k8sClient.Update(ctx, obj)
+			err = c.Update(ctx, obj)
 		}
 		return err
 	}, timeout, interval).Should(Succeed())
@@ -208,6 +255,7 @@ func updateObjWithRetries[O client.Object](obj O, updateStatus bool, update func
 // the controller to eventually create the workspace Pod. The created Pod
 // is returned.
 func createWorkspaceExpectPod(ws *workspacev1.Workspace) *corev1.Pod {
+	GinkgoHelper()
 	By("creating workspace")
 	Expect(k8sClient.Create(ctx, ws)).To(Succeed())
 
@@ -228,13 +276,23 @@ func createWorkspaceExpectPod(ws *workspacev1.Workspace) *corev1.Pod {
 	return pod
 }
 
-func expectConditionEventually(ws *workspacev1.Workspace, tpe string, status string, reason string) {
+func expectPhaseEventually(ws *workspacev1.Workspace, phase workspacev1.WorkspacePhase) {
+	GinkgoHelper()
+	By(fmt.Sprintf("controller transition workspace phase to %s", phase))
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ws.Name, Namespace: ws.Namespace}, ws)).To(Succeed())
+		g.Expect(ws.Status.Phase).To(Equal(phase))
+	}, timeout, interval).Should(Succeed())
+}
+
+func expectConditionEventually(ws *workspacev1.Workspace, tpe string, status metav1.ConditionStatus, reason string) {
+	GinkgoHelper()
 	By(fmt.Sprintf("controller setting workspace condition %s to %s", tpe, status))
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ws.Name, Namespace: ws.Namespace}, ws)).To(Succeed())
 		c := wsk8s.GetCondition(ws.Status.Conditions, tpe)
-		g.Expect(c).ToNot(BeNil())
-		g.Expect(c.Status).To(Equal(metav1.ConditionStatus(status)))
+		g.Expect(c).ToNot(BeNil(), fmt.Sprintf("expected condition %s to be present", tpe))
+		g.Expect(c.Status).To(Equal(status))
 		if reason != "" {
 			g.Expect(c.Reason).To(Equal(reason))
 		}
@@ -242,6 +300,7 @@ func expectConditionEventually(ws *workspacev1.Workspace, tpe string, status str
 }
 
 func expectRuntimeStatus(ws *workspacev1.Workspace, pod *corev1.Pod) {
+	GinkgoHelper()
 	By("artificially setting the pod's status")
 	// Since there are no Pod controllers running in the EnvTest cluster to populate the Pod status,
 	// we artificially update the created Pod's status here, and verify later that the workspace
@@ -250,7 +309,7 @@ func expectRuntimeStatus(ws *workspacev1.Workspace, pod *corev1.Pod) {
 		hostIP = "1.2.3.4"
 		podIP  = "10.0.0.0"
 	)
-	updateObjWithRetries(pod, true, func(p *corev1.Pod) {
+	updateObjWithRetries(k8sClient, pod, true, func(p *corev1.Pod) {
 		p.Status.HostIP = hostIP
 		p.Status.PodIP = podIP
 	})
@@ -266,8 +325,9 @@ func expectRuntimeStatus(ws *workspacev1.Workspace, pod *corev1.Pod) {
 }
 
 func requestStop(ws *workspacev1.Workspace) {
+	GinkgoHelper()
 	By("adding stop signal")
-	updateObjWithRetries(ws, true, func(ws *workspacev1.Workspace) {
+	updateObjWithRetries(k8sClient, ws, true, func(ws *workspacev1.Workspace) {
 		ws.Status.Conditions = wsk8s.AddUniqueCondition(ws.Status.Conditions, metav1.Condition{
 			Type:               string(workspacev1.WorkspaceConditionStoppedByRequest),
 			Status:             metav1.ConditionTrue,
@@ -277,6 +337,7 @@ func requestStop(ws *workspacev1.Workspace) {
 }
 
 func expectFinalizerAndMarkBackupCompleted(ws *workspacev1.Workspace, pod *corev1.Pod) {
+	GinkgoHelper()
 	// Checking for the finalizer enforces our expectation that the workspace
 	// should be waiting for a backup to be taken.
 	By("checking finalizer exists for backup")
@@ -284,11 +345,11 @@ func expectFinalizerAndMarkBackupCompleted(ws *workspacev1.Workspace, pod *corev
 		if err := k8sClient.Get(ctx, types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}, pod); err != nil {
 			return false, err
 		}
-		return controllerutil.ContainsFinalizer(pod, gitpodPodFinalizerName), nil
+		return controllerutil.ContainsFinalizer(pod, workspacev1.GitpodFinalizerName), nil
 	}, duration, interval).Should(BeTrue(), "missing gitpod finalizer on pod, expected one to wait for backup to succeed")
 
 	By("signalling backup completed")
-	updateObjWithRetries(ws, true, func(ws *workspacev1.Workspace) {
+	updateObjWithRetries(k8sClient, ws, true, func(ws *workspacev1.Workspace) {
 		ws.Status.Conditions = wsk8s.AddUniqueCondition(ws.Status.Conditions, metav1.Condition{
 			Type:               string(workspacev1.WorkspaceConditionBackupComplete),
 			Status:             metav1.ConditionTrue,
@@ -299,6 +360,7 @@ func expectFinalizerAndMarkBackupCompleted(ws *workspacev1.Workspace, pod *corev
 }
 
 func expectFinalizerAndMarkBackupFailed(ws *workspacev1.Workspace, pod *corev1.Pod) {
+	GinkgoHelper()
 	// Checking for the finalizer enforces our expectation that the workspace
 	// should be waiting for a backup to be taken (or fail).
 	By("checking finalizer exists for backup")
@@ -306,11 +368,11 @@ func expectFinalizerAndMarkBackupFailed(ws *workspacev1.Workspace, pod *corev1.P
 		if err := k8sClient.Get(ctx, types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}, pod); err != nil {
 			return false, err
 		}
-		return controllerutil.ContainsFinalizer(pod, gitpodPodFinalizerName), nil
+		return controllerutil.ContainsFinalizer(pod, workspacev1.GitpodFinalizerName), nil
 	}, duration, interval).Should(BeTrue(), "missing gitpod finalizer on pod, expected one to wait for backup to succeed")
 
 	By("signalling backup completed")
-	updateObjWithRetries(ws, true, func(ws *workspacev1.Workspace) {
+	updateObjWithRetries(k8sClient, ws, true, func(ws *workspacev1.Workspace) {
 		ws.Status.Conditions = wsk8s.AddUniqueCondition(ws.Status.Conditions, metav1.Condition{
 			Type:               string(workspacev1.WorkspaceConditionBackupFailure),
 			Status:             metav1.ConditionTrue,
@@ -321,11 +383,13 @@ func expectFinalizerAndMarkBackupFailed(ws *workspacev1.Workspace, pod *corev1.P
 }
 
 func expectWorkspaceCleanup(ws *workspacev1.Workspace, pod *corev1.Pod) {
+	GinkgoHelper()
 	By("controller removing pod finalizers")
 	Eventually(func() (int, error) {
 		if err := k8sClient.Get(ctx, types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}, pod); err != nil {
 			if errors.IsNotFound(err) {
-				// Pod got deleted, because finalizers got removed.
+				// Race: finalizers got removed causing pod to get deleted before we could check.
+				// This is what we want though.
 				return 0, nil
 			}
 			return 0, err
@@ -339,9 +403,27 @@ func expectWorkspaceCleanup(ws *workspacev1.Workspace, pod *corev1.Pod) {
 		return checkNotFound(pod)
 	}, timeout, interval).Should(Succeed(), "pod did not go away")
 
+	By("controller removing workspace finalizers")
+	Eventually(func() (int, error) {
+		if err := k8sClient.Get(ctx, types.NamespacedName{Name: ws.GetName(), Namespace: ws.GetNamespace()}, ws); err != nil {
+			if errors.IsNotFound(err) {
+				// Race: finalizers got removed causing workspace to get deleted before we could check.
+				// This is what we want though.
+				return 0, nil
+			}
+			return 0, err
+		}
+		return len(ws.ObjectMeta.Finalizers), nil
+
+	}, timeout, interval).Should(Equal(0), "workspace finalizers did not go away")
+
 	By("cleaning up the workspace resource")
-	Eventually(func() error {
-		return checkNotFound(ws)
+	Eventually(func(g Gomega) error {
+		if err := checkNotFound(ws); err == nil {
+			return nil
+		}
+		g.Expect(ws.Status.Phase).To(Equal(workspacev1.WorkspacePhaseStopped))
+		return fmt.Errorf("workspace is Stopped, but hasn't been deleted yet")
 	}, timeout, interval).Should(Succeed(), "workspace did not go away")
 }
 
@@ -361,6 +443,7 @@ func checkNotFound(obj client.Object) error {
 }
 
 func newWorkspace(name, namespace string) *workspacev1.Workspace {
+	GinkgoHelper()
 	initializer := &csapi.WorkspaceInitializer{
 		Spec: &csapi.WorkspaceInitializer_Empty{Empty: &csapi.EmptyInitializer{}},
 	}
@@ -373,8 +456,9 @@ func newWorkspace(name, namespace string) *workspacev1.Workspace {
 			Kind:       "Workspace",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:       name,
+			Namespace:  namespace,
+			Finalizers: []string{workspacev1.GitpodFinalizerName},
 		},
 		Spec: workspacev1.WorkspaceSpec{
 			Ownership: workspacev1.Ownership{

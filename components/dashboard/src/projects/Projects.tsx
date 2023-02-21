@@ -17,6 +17,8 @@ import Alert from "../components/Alert";
 import { ProjectListItem } from "./ProjectListItem";
 import { SpinnerLoader } from "../components/Loader";
 import { useListProjectsQuery } from "../data/projects/list-projects-query";
+import { projectsPathNew } from "./projects.routes";
+import search from "../icons/search.svg";
 
 export default function ProjectsPage() {
     const history = useHistory();
@@ -24,11 +26,10 @@ export default function ProjectsPage() {
     const { data, isLoading, isError, refetch } = useListProjectsQuery();
     const { isDark } = useContext(ThemeContext);
     const [searchFilter, setSearchFilter] = useState<string | undefined>();
-    const newProjectUrl = `/new`;
 
     const onNewProject = useCallback(() => {
-        history.push(newProjectUrl);
-    }, [history, newProjectUrl]);
+        history.push(projectsPathNew);
+    }, [history]);
 
     const filteredProjects = useMemo(() => {
         const filter = (project: Project) => {
@@ -80,7 +81,7 @@ export default function ProjectsPage() {
                         </a>
                     </p>
                     <div className="flex space-x-2 justify-center mt-7">
-                        <Link to={newProjectUrl}>
+                        <Link to={projectsPathNew}>
                             <button>New Project</button>
                         </Link>
                         {team && (
@@ -93,25 +94,18 @@ export default function ProjectsPage() {
             )}
             {(data?.projects || []).length > 0 && (
                 <div className="app-container">
-                    <div className="mt-8 pb-2 flex border-b border-gray-200 dark:border-gray-800">
-                        <div className="flex">
-                            <div className="py-4">
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 16 16"
-                                    width="16"
-                                    height="16"
-                                >
-                                    <path
-                                        fill="#A8A29E"
-                                        d="M6 2a4 4 0 100 8 4 4 0 000-8zM0 6a6 6 0 1110.89 3.477l4.817 4.816a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 010 6z"
-                                    />
-                                </svg>
-                            </div>
+                    <div className="mt-3 pb-3 flex border-b border-gray-200 dark:border-gray-800">
+                        <div className="flex relative h-10 my-auto">
+                            <img
+                                src={search}
+                                title="Search"
+                                className="filter-grayscale absolute top-3 left-3"
+                                alt="search icon"
+                            />
                             <input
                                 type="search"
-                                placeholder="Search Projects"
+                                className="w-64 pl-9 border-0"
+                                placeholder="Filter Projects"
                                 onChange={(e) => setSearchFilter(e.target.value)}
                             />
                         </div>
@@ -135,7 +129,7 @@ export default function ProjectsPage() {
                                 key="new-project"
                                 className="h-52 border-dashed border-2 border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl focus:bg-gitpod-kumquat-light transition ease-in-out group"
                             >
-                                <Link to={newProjectUrl} data-analytics='{"button_type":"card"}'>
+                                <Link to={projectsPathNew} data-analytics='{"button_type":"card"}'>
                                     <div className="flex h-full">
                                         <div className="m-auto text-gray-400 dark:text-gray-600">New Project</div>
                                     </div>

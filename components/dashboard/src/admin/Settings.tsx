@@ -4,7 +4,7 @@
  * See License.AGPL.txt in the project root for license information.
  */
 
-import { useContext } from "react";
+import React, { useContext } from "react";
 import { TelemetryData, InstallationAdminSettings } from "@gitpod/gitpod-protocol";
 import { AdminContext } from "../admin-context";
 import CheckBox from "../components/CheckBox";
@@ -12,7 +12,21 @@ import { getGitpodService } from "../service/service";
 import { useEffect, useState } from "react";
 import InfoBox from "../components/InfoBox";
 import { isGitpodIo } from "../utils";
-import { PageWithAdminSubMenu } from "./PageWithAdminSubMenu";
+import { PageWithSubMenu } from "../components/PageWithSubMenu";
+import { getAdminTabs, getAdminSettingsMenu } from "./admin.routes";
+
+export function SettingsLayout(props: { children: React.ReactNode }) {
+    return (
+        <PageWithSubMenu
+            subMenu={getAdminSettingsMenu()}
+            title="Admin"
+            subtitle="Configure and manage instance settings."
+            tabs={getAdminTabs()}
+        >
+            {props.children}
+        </PageWithSubMenu>
+    );
+}
 
 export default function Settings() {
     const { adminSettings, setAdminSettings } = useContext(AdminContext);
@@ -38,7 +52,7 @@ export default function Settings() {
 
     return (
         <div>
-            <PageWithAdminSubMenu title="Settings" subtitle="Configure settings for your Gitpod cluster.">
+            <SettingsLayout>
                 <h3>Usage Statistics</h3>
                 <p className="text-base text-gray-500 pb-4 max-w-2xl">
                     We collect usage telemetry to gain insights on how you use your Gitpod instance, so we can provide a
@@ -84,7 +98,7 @@ export default function Settings() {
                 <InfoBox>
                     <pre>{JSON.stringify(telemetryData, null, 2)}</pre>
                 </InfoBox>
-            </PageWithAdminSubMenu>
+            </SettingsLayout>
         </div>
     );
 }

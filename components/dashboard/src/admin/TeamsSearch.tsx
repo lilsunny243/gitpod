@@ -13,14 +13,18 @@ import { Link } from "react-router-dom";
 import { getGitpodService } from "../service/service";
 import { AdminGetListResult, Team } from "@gitpod/gitpod-protocol";
 import Label from "./Label";
-import { PageWithAdminSubMenu } from "./PageWithAdminSubMenu";
+import { AdminPageHeader } from "./AdminPageHeader";
 import Pagination from "../Pagination/Pagination";
+import { SpinnerLoader } from "../components/Loader";
+import searchIcon from "../icons/search.svg";
 
 export default function TeamsSearchPage() {
     return (
-        <PageWithAdminSubMenu title="Organizations" subtitle="Search and manage organizations.">
-            <TeamsSearch />
-        </PageWithAdminSubMenu>
+        <AdminPageHeader title="Admin" subtitle="Configure and manage instance settings.">
+            <div className="app-container">
+                <TeamsSearch />
+            </div>
+        </AdminPageHeader>
     );
 }
 
@@ -72,37 +76,23 @@ export function TeamsSearch() {
     };
     return (
         <>
-            <div className="pt-8 flex">
+            <div className="mb-3 mt-3 flex">
                 <div className="flex justify-between w-full">
-                    <div className="flex">
-                        <div className="py-4">
-                            {searching ? (
-                                <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path
-                                        fill="#A8A29E"
-                                        d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z"
-                                    >
-                                        <animateTransform
-                                            attributeName="transform"
-                                            type="rotate"
-                                            dur="0.75s"
-                                            values="0 12 12;360 12 12"
-                                            repeatCount="indefinite"
-                                        />
-                                    </path>
-                                </svg>
-                            ) : (
-                                <svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path
-                                        fillRule="evenodd"
-                                        clipRule="evenodd"
-                                        d="M6 2a4 4 0 100 8 4 4 0 000-8zM0 6a6 6 0 1110.89 3.477l4.817 4.816a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 010 6z"
-                                        fill="#A8A29E"
-                                    />
-                                </svg>
-                            )}
-                        </div>
+                    <div className="flex relative h-10 my-auto">
+                        {searching ? (
+                            <span className="filter-grayscale absolute top-3 left-3">
+                                <SpinnerLoader small={true} />
+                            </span>
+                        ) : (
+                            <img
+                                src={searchIcon}
+                                title="Search"
+                                className="filter-grayscale absolute top-3 left-3"
+                                alt="search icon"
+                            />
+                        )}
                         <input
+                            className="w-64 pl-9 border-0"
                             type="search"
                             placeholder="Search Organizations"
                             onKeyDown={(k) => k.key === "Enter" && search()}
@@ -111,9 +101,6 @@ export function TeamsSearch() {
                             }}
                         />
                     </div>
-                    <button disabled={searching} onClick={() => search()}>
-                        Search
-                    </button>
                 </div>
             </div>
             <div className="flex flex-col space-y-2">

@@ -27,6 +27,7 @@ import {
     UserSSHPublicKeyValue,
     SSHPublicKeyValue,
     IDESettings,
+    EnvVarWithValue,
 } from "./protocol";
 import {
     Team,
@@ -117,6 +118,7 @@ export interface GitpodServer extends JsonRpcServer<GitpodClient>, AdminServer, 
     getWorkspace(id: string): Promise<WorkspaceInfo>;
     isWorkspaceOwner(workspaceId: string): Promise<boolean>;
     getOwnerToken(workspaceId: string): Promise<string>;
+    getIDECredentials(workspaceId: string): Promise<string>;
 
     /**
      * Creates and starts a workspace for the given context URL.
@@ -151,6 +153,9 @@ export interface GitpodServer extends JsonRpcServer<GitpodClient>, AdminServer, 
     // User storage
     getUserStorageResource(options: GitpodServer.GetUserStorageResourceOptions): Promise<string>;
     updateUserStorageResource(options: GitpodServer.UpdateUserStorageResourceOptions): Promise<void>;
+
+    // Workspace env vars
+    getWorkspaceEnvVars(workspaceId: string): Promise<EnvVarWithValue[]>;
 
     // User env vars
     getEnvVars(): Promise<UserEnvVarValue[]>;
@@ -439,6 +444,7 @@ export namespace GitpodServer {
     }
     export interface CreateWorkspaceOptions extends StartWorkspaceOptions {
         contextUrl: string;
+        organizationId?: string;
 
         // whether running workspaces on the same context should be ignored. If false (default) users will be asked.
         ignoreRunningWorkspaceOnSameCommit?: boolean;
