@@ -6,7 +6,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.30.0
 	github.com/containerd/containerd v1.6.18
 	github.com/docker/cli v20.10.17+incompatible
-	github.com/docker/distribution v2.8.1+incompatible
+	github.com/docker/distribution v2.8.2+incompatible
 	github.com/gitpod-io/gitpod/common-go v0.0.0-00010101000000-000000000000
 	github.com/gitpod-io/gitpod/registry-facade/api v0.0.0-00010101000000-000000000000
 	github.com/go-redis/redis/v8 v8.11.5
