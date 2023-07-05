@@ -28,8 +28,8 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/stripe/stripe-go/v72 v72.122.0
 	github.com/zitadel/oidc v1.13.0
-	golang.org/x/oauth2 v0.3.0
-	google.golang.org/grpc v1.52.3
+	golang.org/x/oauth2 v0.4.0
+	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gorm.io/gorm v1.24.1
@@ -86,13 +86,13 @@ require (
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	github.com/zitadel/logging v0.3.4 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	golang.org/x/net v0.4.0 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/text v0.5.0 // indirect
+	golang.org/x/net v0.5.0 // indirect
+	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/text v0.6.0 // indirect
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20221118155620-16455021b5e6 // indirect
+	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gorm.io/datatypes v1.0.7 // indirect
 )
