@@ -25,7 +25,7 @@ require (
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 	golang.org/x/term v0.5.0
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f
-	google.golang.org/grpc v1.52.3
+	google.golang.org/grpc v1.53.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -42,7 +42,7 @@ require (
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
 	golang.org/x/sys v0.5.0 // indirect
-	google.golang.org/genproto v0.0.0-20221118155620-16455021b5e6 // indirect
+	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
 )
 
 require (
