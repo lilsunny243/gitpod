@@ -20,7 +20,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/uber/jaeger-client-go v2.29.1+incompatible
 	golang.org/x/sync v0.2.0
-	golang.org/x/sys v0.11.0
+	golang.org/x/sys v0.13.0
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 	google.golang.org/grpc v1.52.3
@@ -60,8 +60,8 @@ require (
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c // indirect
 	go.uber.org/atomic v1.4.0 // indirect
-	golang.org/x/net v0.8.0 // indirect
-	golang.org/x/text v0.8.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/genproto v0.0.0-20221118155620-16455021b5e6 // indirect
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
