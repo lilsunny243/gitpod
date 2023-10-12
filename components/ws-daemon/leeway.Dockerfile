@@ -2,17 +2,12 @@
 # Licensed under the GNU Affero General Public License (AGPL).
 # See License.AGPL.txt in the project root for license information.
 
-FROM cgr.dev/chainguard/wolfi-base:latest@sha256:a60ae0886c94287da6d54c9df735e87937d589dcdc6c556df1341caef5c3f6ba as dl
+FROM cgr.dev/chainguard/wolfi-base:latest@sha256:d97b08245cdceb142b25e9be03c8cea4d4e96b1d7e14bef64ca87a1f3212d23f as dl
 WORKDIR /dl
 RUN apk add --no-cache curl file \
   && curl -OsSL https://github.com/opencontainers/runc/releases/download/v1.1.9/runc.amd64 \
   && chmod +x runc.amd64 \
   && if ! file runc.amd64 | grep -iq "ELF 64-bit LSB pie executable"; then echo "runc.amd64 is not a binary file"; exit 1;fi
-
-RUN curl -OsSL https://github.com/peak/s5cmd/releases/download/v2.2.2/s5cmd_2.2.2_Linux-64bit.tar.gz \
- && tar -xzvf s5cmd_2.2.2_Linux-64bit.tar.gz s5cmd \
- && chmod +x s5cmd \
- && if ! file s5cmd | grep -iq "ELF 64-bit LSB executable"; then echo "s5cmd is not a binary file"; exit 1;fi
 
 FROM ubuntu:22.04
 
@@ -51,7 +46,6 @@ RUN apt update \
     /var/tmp/*
 
 COPY --from=dl /dl/runc.amd64 /usr/bin/runc
-COPY --from=dl /dl/s5cmd /usr/bin/s5cmd
 
 # Add gitpod user for operations (e.g. checkout because of the post-checkout hook!)
 RUN groupadd -r -g 33333 gitpod \

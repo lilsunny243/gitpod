@@ -58,6 +58,9 @@ export interface User {
 
     // The phone number used for the last phone verification.
     verificationPhoneNumber?: string;
+
+    // The FGA relationships version of this user
+    fgaRelationshipsVersion?: number;
 }
 
 export namespace User {
@@ -268,8 +271,6 @@ export interface AdditionalUserData extends Partial<WorkspaceTimeoutSetting> {
     // additional user profile data
     profile?: ProfileDetails;
     shouldSeeMigrationMessage?: boolean;
-    // fgaRelationshipsVersion is the version of the spicedb relationships
-    fgaRelationshipsVersion?: number;
     // remembered workspace auto start options
     workspaceAutostartOptions?: WorkspaceAutostartOption[];
 }
@@ -339,6 +340,9 @@ export type IDESettings = {
 
 export interface WorkspaceClasses {
     regular?: string;
+    /**
+     * @deprecated see Project.settings.prebuilds.workspaceClass
+     */
     prebuild?: string;
 }
 
@@ -679,9 +683,6 @@ export interface GitpodToken {
 
     /** Created timestamp */
     created: string;
-
-    // token is deleted on the database and about to be collected by periodic deleter
-    deleted?: boolean;
 }
 
 export enum GitpodTokenType {
@@ -750,8 +751,6 @@ export interface TokenEntry {
     token: Token;
     expiryDate?: string;
     refreshable?: boolean;
-    /** This is a flag that triggers the HARD DELETION of this entity */
-    deleted?: boolean;
 }
 
 export interface EmailDomainFilterEntry {
@@ -1496,16 +1495,7 @@ export interface WorkspaceCreationResult {
     createdWorkspaceId?: string;
     workspaceURL?: string;
     existingWorkspaces?: WorkspaceInfo[];
-    runningWorkspacePrebuild?: {
-        prebuildID: string;
-        workspaceID: string;
-        instanceID: string;
-        starting: RunningWorkspacePrebuildStarting;
-        sameCluster: boolean;
-    };
-    runningPrebuildWorkspaceID?: string;
 }
-export type RunningWorkspacePrebuildStarting = "queued" | "starting" | "running";
 
 export namespace WorkspaceCreationResult {
     export function is(data: any): data is WorkspaceCreationResult {

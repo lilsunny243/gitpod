@@ -98,6 +98,7 @@ export interface GitpodServer extends JsonRpcServer<GitpodClient>, AdminServer, 
     getFeaturedRepositories(): Promise<WhitelistedRepository[]>;
     getSuggestedContextURLs(): Promise<string[]>;
     getSuggestedRepositories(organizationId: string): Promise<SuggestedRepository[]>;
+    searchRepositories(params: SearchRepositoriesParams): Promise<SuggestedRepository[]>;
     /**
      * **Security:**
      * Sensitive information like an owner token is erased, since it allows access for all team members.
@@ -314,6 +315,10 @@ export interface GetProviderRepositoriesParams {
     limit?: number;
     maxPages?: number;
 }
+export interface SearchRepositoriesParams {
+    organizationId: string;
+    searchString: string;
+}
 export interface ProviderRepository {
     name: string;
     path?: string;
@@ -419,8 +424,6 @@ export namespace GitpodServer {
         // whether running workspaces on the same context should be ignored. If false (default) users will be asked.
         //TODO(se) remove this option and let clients do that check if they like. The new create workspace page does it already
         ignoreRunningWorkspaceOnSameCommit?: boolean;
-        ignoreRunningPrebuild?: boolean;
-        allowUsingPreviousPrebuilds?: boolean;
         forceDefaultConfig?: boolean;
     }
 
