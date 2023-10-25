@@ -37,10 +37,10 @@ require (
 	github.com/onsi/ginkgo v1.15.0 // indirect
 	github.com/onsi/gomega v1.10.5 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
-	golang.org/x/net v0.8.0 // indirect
-	golang.org/x/text v0.8.0 // indirect
-	google.golang.org/genproto v0.0.0-20221118155620-16455021b5e6 // indirect
-	google.golang.org/grpc v1.52.3 // indirect
+	golang.org/x/net v0.9.0 // indirect
+	golang.org/x/text v0.9.0 // indirect
+	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
+	google.golang.org/grpc v1.56.3 // indirect
 )
 
 replace github.com/gitpod-io/gitpod/common-go => ../common-go // leeway
