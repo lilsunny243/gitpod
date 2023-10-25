@@ -28,8 +28,8 @@ require (
 	github.com/stretchr/testify v1.8.3
 	github.com/stripe/stripe-go/v72 v72.122.0
 	github.com/zitadel/oidc v1.13.0
-	golang.org/x/oauth2 v0.6.0
-	google.golang.org/grpc v1.55.0
+	golang.org/x/oauth2 v0.7.0
+	google.golang.org/grpc v1.56.3
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gorm.io/gorm v1.25.1
