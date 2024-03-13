@@ -12,7 +12,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2
 	google.golang.org/grpc v1.52.3
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.33.0
 	k8s.io/api v0.27.3
 	k8s.io/apimachinery v0.27.3
 	sigs.k8s.io/controller-runtime v0.15.0
