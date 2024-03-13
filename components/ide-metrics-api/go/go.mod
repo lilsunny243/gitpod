@@ -8,7 +8,7 @@ require (
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f
 	google.golang.org/genproto v0.0.0-20221118155620-16455021b5e6
 	google.golang.org/grpc v1.52.3
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.33.0
 )
 
 require (
