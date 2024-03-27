@@ -75,7 +75,7 @@
     "countries-list": "^2.6.1",
     "deep-equal": "^2.0.5",
     "deepmerge": "^4.2.2",
-    "express": "^4.17.3",
+    "express": "^4.19.2",
     "express-http-proxy": "^1.0.7",
     "fs-extra": "^10.0.0",
     "google-protobuf": "^3.19.1",
