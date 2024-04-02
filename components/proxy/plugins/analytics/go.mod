@@ -7,6 +7,8 @@ require (
 	go.uber.org/zap v1.25.0
 )
 
+require go.uber.org/mock v0.4.0 // indirect
+
 require (
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/AndreasBriese/bbloom v0.0.0-20190825152654-46b345b51c96 // indirect
@@ -33,7 +35,6 @@ require (
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/golang/glog v1.1.0 // indirect
-	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/cel-go v0.15.1 // indirect
@@ -71,8 +72,7 @@ require (
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.10.1 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
-	github.com/quic-go/qtls-go1-20 v0.3.0 // indirect
-	github.com/quic-go/quic-go v0.37.1 // indirect
+	github.com/quic-go/quic-go v0.42.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/segmentio/backo-go v1.0.1 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
