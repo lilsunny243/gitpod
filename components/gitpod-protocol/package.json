@@ -63,7 +63,7 @@
         "analytics-node": "^6.0.0",
         "configcat-node": "^8.0.0",
         "cookie": "^0.4.2",
-        "express": "^4.17.3",
+        "express": "^4.20.0",
         "google-protobuf": "^3.19.1",
         "inversify": "^6.0.1",
         "jaeger-client": "^3.18.1",
