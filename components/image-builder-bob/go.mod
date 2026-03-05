@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/containerd/console v1.0.3
 	github.com/containerd/containerd v1.7.6
-	github.com/docker/cli v24.0.4+incompatible
+	github.com/docker/cli v29.2.0+incompatible
 	github.com/docker/distribution v2.8.2+incompatible
 	github.com/gitpod-io/gitpod/common-go v0.0.0-00010101000000-000000000000
 	github.com/hashicorp/go-retryablehttp v0.7.2
