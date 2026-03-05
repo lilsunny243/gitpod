@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/containerd/containerd v1.7.6
-	github.com/docker/cli v24.0.2+incompatible
+	github.com/docker/cli v29.2.0+incompatible
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/gitpod-io/gitpod/common-go v0.0.0-00010101000000-000000000000
 	github.com/gitpod-io/gitpod/gitpod-protocol v0.0.0-00010101000000-000000000000
