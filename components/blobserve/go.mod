@@ -1,6 +1,6 @@
 module github.com/gitpod-io/gitpod/blobserve
 
-go 1.21
+go 1.25.7
 
 require (
 	github.com/containerd/containerd v1.7.6
@@ -8,13 +8,13 @@ require (
 	github.com/docker/distribution v2.8.2+incompatible
 	github.com/gitpod-io/gitpod/common-go v0.0.0-00010101000000-000000000000
 	github.com/gitpod-io/gitpod/registry-facade v0.0.0-00010101000000-000000000000
-	github.com/google/go-cmp v0.5.9
+	github.com/google/go-cmp v0.7.0
 	github.com/gorilla/mux v1.8.0
 	github.com/heptiolabs/healthcheck v0.0.0-20211123025425-613501dd5deb
 	github.com/opencontainers/image-spec v1.1.0-rc2.0.20221005185240-3a7f492d3f1b
 	github.com/prometheus/client_golang v1.16.0
 	github.com/spf13/cobra v1.6.0
-	golang.org/x/sync v0.3.0
+	golang.org/x/sync v0.20.0
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2
 )
 
@@ -52,7 +52,7 @@ require (
 	github.com/ipfs/bbloom v0.0.4 // indirect
 	github.com/ipfs/boxo v0.13.1 // indirect
 	github.com/ipfs/go-block-format v0.1.2 // indirect
-	github.com/ipfs/go-cid v0.4.1 // indirect
+	github.com/ipfs/go-cid v0.6.1 // indirect
 	github.com/ipfs/go-datastore v0.6.0 // indirect
 	github.com/ipfs/go-ds-measure v0.2.0 // indirect
 	github.com/ipfs/go-fs-lock v0.0.7 // indirect
@@ -65,7 +65,7 @@ require (
 	github.com/ipfs/go-metrics-interface v0.0.1 // indirect
 	github.com/ipfs/kubo v0.22.1-0.20230925133955-0f1ec5949e71 // indirect
 	github.com/ipld/go-codec-dagpb v1.6.0 // indirect
-	github.com/ipld/go-ipld-prime v0.21.0 // indirect
+	github.com/ipld/go-ipld-prime v0.23.0 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
@@ -81,20 +81,20 @@ require (
 	github.com/moby/locker v1.0.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/mr-tron/base58 v1.2.0 // indirect
+	github.com/mr-tron/base58 v1.3.0 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
 	github.com/multiformats/go-base36 v0.2.0 // indirect
 	github.com/multiformats/go-multiaddr v0.11.0 // indirect
-	github.com/multiformats/go-multibase v0.2.0 // indirect
-	github.com/multiformats/go-multicodec v0.9.0 // indirect
+	github.com/multiformats/go-multibase v0.3.0 // indirect
+	github.com/multiformats/go-multicodec v0.10.0 // indirect
 	github.com/multiformats/go-multihash v0.2.3 // indirect
 	github.com/multiformats/go-multistream v0.4.1 // indirect
-	github.com/multiformats/go-varint v0.0.7 // indirect
+	github.com/multiformats/go-varint v0.1.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/polydawn/refmt v0.89.0 // indirect
+	github.com/polydawn/refmt v0.89.1-0.20231129105047-37766d95467a // indirect
 	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.11.1 // indirect
@@ -112,11 +112,13 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.25.0 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
-	golang.org/x/crypto v0.12.0 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect
-	golang.org/x/net v0.14.0 // indirect
-	golang.org/x/sys v0.11.0 // indirect
-	golang.org/x/text v0.12.0 // indirect
+	golang.org/x/mod v0.35.0 // indirect
+	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/telemetry v0.0.0-20260508143814-452d2f60da57 // indirect
+	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4 // indirect
 	google.golang.org/grpc v1.55.0 // indirect
