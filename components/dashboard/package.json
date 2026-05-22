@@ -23,7 +23,7 @@
     "dayjs": "^1.11.5",
     "file-saver": "^2.0.5",
     "idb-keyval": "^6.2.0",
-    "js-cookie": "^3.0.1",
+    "js-cookie": "^3.0.7",
     "lodash.debounce": "^4.0.8",
     "monaco-editor": "^0.25.2",
     "pretty-bytes": "^6.1.0",
