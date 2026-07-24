@@ -1,6 +1,6 @@
 module github.com/gitpod-io/gitpod/usage-api
 
-go 1.21
+go 1.25.0
 
 replace github.com/gitpod-io/gitpod/common-go => ../../common-go // leeway
 
@@ -55,14 +55,14 @@ replace k8s.io/mount-utils => k8s.io/mount-utils v0.27.3 // leeway indirect from
 replace k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.27.3 // leeway indirect from components/common-go:lib
 
 require (
-	google.golang.org/grpc v1.47.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/grpc v1.82.1
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
-	github.com/golang/protobuf v1.5.2 // indirect
-	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
-	golang.org/x/sys v0.0.0-20210119212857-b64e53b001e4 // indirect
-	golang.org/x/text v0.3.3 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
+	golang.org/x/net v0.53.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 )
